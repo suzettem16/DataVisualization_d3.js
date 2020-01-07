@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Final Project</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.css" />
+    
+    <style type="text/css">
+
+        #info {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .left {
+            border: solid;
+            color: purple;
+            padding: 0px 50px 1px;
+        }
+
+        .left p {
+            color: green
+        }
+        
+        .right h4 {
+            font-weight: lighter;
+            text-align: right;
+        }
+
+        div.tooltip {
+            position: absolute;
+            text-align: center;
+            width: 100px;
+            height: 60px;
+            padding: 2px;
+            font: 12px sans-serif;
+            background: #fff;
+            border: 0px;
+            pointer-events: none;
+        }
+
+        .states:hover {
+            fill-opacity: 0.5;
+        }
+
+        .county:hover {
+            fill-opacity: 0.5;
+        }
+
+        .state-borders {
+            stroke: #fff;
+            stroke-width: 0.5px;
+            stroke-linejoin: round;
+            stroke-linecap: round;
+            pointer-events: none;
+        }
+
+        
+
+        .line-class {
+            display: flex;
+            flex-direction: row;
+        }
+
+            .line-class .vcontainer {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .line-class .lcontainer {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+            }
+
+            .line-class .label {
+                margin-left: 100px;
+                font: 20px sans-serif;
+                color: purple;
+            }
+
+        .line {
+            fill: none;
+            stroke-width: 2px;
+        }
+
+        .rec-class {
+            display: flex;
+            flex-direction: column;
+        }
+
+            .rec-class .Bcontainer {
+                display: flex;
+                flex-direction: column;
+            }
+
+        .highlight {
+            fill: #d3d3d3 !important;
+        }
+        .highlight2 {
+            color: white !important;
+        }
+        .highlight3 {
+            color: red !important;
+        }
+        .highlightState {
+            stroke: purple !important;
+            stroke-width: 4px !important;
+        }
+        .highlight_text {
+            font-size: x-large !important;
+            color: #008CBA !important;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        #linked-advanced {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+        #linked-advanced .map-container .us-map {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+        }
+        #linked-advanced .Bubble-container-class {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #rec-sys .controls {
+            width: 300px;
+            margin-left: 100px;
+            margin-top: 20px;
+            margin-bottom: 80px;
+        }
+        .rec-class .label {
+            margin-left: 85px;
+            font: 20px sans-serif;
+            color: purple;
+        }
+        .rec-class .label_text {
+            z-index: -1;
+        }
+        .Bubble-container-class .label {
+            margin-left: 120px;
+            font: 20px sans-serif;
+            color: purple;
+        }
+        h3 {
+            color: coral;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
+</head>
+<body>
+    <h1>Info</h1>
+    <div id="info">
+        <div class="left">
+            <!-- Your Name & Id -->
+            <h1><p>Sri Divya Pagadala</p></h1>
+            <h3><p>Z1861112</p></h3>
+        </div>
+        <div class="right">
+            <!-- Class Title & Assignment -->
+            <h4><i>Data Visualization (CIS 490/680)</i></h4>
+            <h4><i>Final Project</i></h4>
+        </div>
+    </div>
+    <p>
+        <em>
+            This project is all my own work. I did not copy the code from any other source.
+            Note: 
+            <a href="https://observablehq.com/@d3/multi-line-chart">Bostock Multi Linegraph Code reference,</a>
+            <a href="https://observablehq.com/@d3/bubble-chart">Bostock BubbleChart Code reference</a>
+        </em>
+    </p>
+    <div class="project">
+        <h1>Zillow Data US Home Values</h1>
+        <p>
+            This project aims at visualizing Home pricing trends in United States for the past 23 years and also giving brief insight of states and counties level home pricings as of today.
+            This is interactive visualization project which allows users to interact with visualization at every step. 
+            Allowing the user to select filters and drill down into data from particular states/regions.
+        </p>
+    </div>
+        <div class="data">
+            <h1>Description of Data</h1>
+            <p>
+                Zillow is an American online real estate database company. It provides datasets publicly on their website for research purposes.
+                The data used for this project is US home values from 1996 to 2019. It is 25mb data set with 287 columns 13237 rows.
+            </p>
+        </div>
+        <h1>Overview of Data</h1>
+        <div id="line-graph" class="line-class">
+            <div class="vcontainer">
+                <div class="label">US Home Value Trends</div>
+                <div class="graph"></div>
+            </div>
+            <div class="lcontainer"></div>
+        </div>
+        <h1>Investigate further</h1>
+    <h3>(Click on state to display counties)</h3>
+        <div id="linked-advanced" class="link-adv-class">
+            <div class="map-container">
+                <div class="us-map"></div>
+
+            </div>
+            <div id="rec-sys" class="rec-class">
+                <div class="Bcontainer">
+                    <div class="label">Home Value Ranges(In multiples of Thousands)</div>
+                    <div class="controls"></div>
+
+                </div>
+                <div class="state-map"></div>
+            </div>
+
+            <!--<div class="label">County Regions</div>-->
+            <div id="Bubble-container" class="Bubble-container-class">
+
+                <div class="label">Top 10 Home value Regions</div>
+                <div class="bubble-chart">
+
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Either add your own script or link to a separate js file here -->
+
+        <script type="text/javascript" src="project.js"></script>
+
+</body>
+</html >
