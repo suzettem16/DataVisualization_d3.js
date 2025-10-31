@@ -36,12 +36,10 @@ function createVis(data) {
 
     var countyAverages = calc_countyAverages(zillowDataAvg, states);
 
-    createLines(states, statesAverages,keys);
     createUSMap(topoUs, mapDataState, countyAverages, states, statesAverages, createStateMap, statesTopoJson, createBubble, zillowDataAvg);
     createSlider("#linked-advanced .rec-class .Bcontainer .controls");
     createStateMap(statesTopoJson, mapDataState, countyAverages, states, stateId = '17', createBubble, zillowDataAvg);
     function createBubble(zillowDataAvg, mapDataState, states,selectedCounty,selectedState) {
-       // var selectedCounty = 'Cook County'; var selectedState = 'IL';
         var state = mapDataState.filter(d => d.id == selectedState);
         
         var selectAb = "";
@@ -120,8 +118,7 @@ function createVis(data) {
                 leaf.append("title")
                     .text(d => `${av}${format(d.data[2019])}`);
             }
-            // createSlider("#linked-advanced .rec-class .Bcontainer .controls", countyAverages, state, leaf, selectCounties);
-         //sliderChange("#linked-advanced .rec-class .Bcontainer .controls", countyAverages, selectedState, leaf, selectCounties);
+        
     }
 }
 function createLegend(colorScale, divId, vertical, reverse) {
@@ -251,9 +248,6 @@ function createStateMap(statesTopoJson, mapDataState, countyAverages, states, st
 
     }
 
-    //editing here test changes
-
-    //Loading GEOJson file for states county map directy from web
     d3.json(statesTopoJson[stateId]).then(function (state) {
         key = d3.keys(state.objects);
         var counties = topojson.feature(state, state.objects[key[0]]);
@@ -299,10 +293,6 @@ function createStateMap(statesTopoJson, mapDataState, countyAverages, states, st
         .text(state[0]["properties"]["name"])
         .raise();
     sliderChange("#linked-advanced .rec-class .Bcontainer .controls",states, mapDataState, countyAverages, "#linked-advanced .rec-class .state-map .county", stateId)
-
-
-
-   
 
 }
 
@@ -350,21 +340,16 @@ function sliderChange(sliderId,states, mapDataState, countyAverages,divId, state
        
         d3.selectAll(divId).classed("highlight", false);
         if (countiesOutRange.length !=0) {
-            //var newfarm = keys.filter(d => func(d.value) * 100 < +values[0] || func(d.value) * 100 > +values[1]);
-            //console.log(values[0]);
+           
             keys2 = [];
             for (var prop in countiesOutRange)
                 keys2.push(countiesOutRange[prop].County);
 
-            // console.log(countiesOutRange,keys2);
             function check(name) {
                 c = keys2.filter(e => e == name);
                 if (c.length == 1)
                     return true
             }
-
-
-           
 
             d3.selectAll(divId).filter(d => check(d.properties.NAME + " County")).classed("highlight", true);
             d3.selectAll(divId).classed("highlightState", false);
@@ -394,11 +379,7 @@ function createUSMap(data, mapDataState, countyAverages, states, stateAverages, 
     var color = d3.scaleSequential([0, 800000], d3.interpolateViridis);
     createLegendDiv(color, "#linked-advanced .map-container .us-map", true, true, size = [360, 100]);
     
-        var year = "2019-08";
-        // console.log(year);
-
-
-        
+        var year = "2019-08";      
         
         function tip(state) {
             var selectAb = "";
@@ -426,8 +407,6 @@ function createUSMap(data, mapDataState, countyAverages, states, stateAverages, 
                 .style('top', d3.event.pageY - 28 + 'px');
 
         }
-
-
         function colorMapState(state) {
             var selectAb = "";
             for (var j = 0; j < states.length; j++) {
@@ -442,10 +421,8 @@ function createUSMap(data, mapDataState, countyAverages, states, stateAverages, 
                 color = color1(selectState[0].value[year] );
             }
             return color;
-
         }
     
-
     function scale(scaleFactor) {
         return d3.geoTransform({
             point: function (x, y) {
@@ -474,302 +451,7 @@ function createUSMap(data, mapDataState, countyAverages, states, stateAverages, 
             .transition()
             .duration(2000)
             .attr("fill", d => colorMapState(d.properties.name));
-
-    //mapSvg.append("g")
-    //    .attr("transform", "translate(300,30)")
-    //    .attr("class", "legend_group")
-    //    .call(legend_seq);
-
-    
-
 }
-
-function createLineLegend(stateAverages, b, getStateName, color, path, svg, x, y) {
-
-        var legend = d3.select("#line-graph .lcontainer").append("div")
-            .attr("class", "legend")
-            .append("svg")
-            .attr("width", 200)
-            .attr("height", 500);
-        var legend1 = d3.select("#line-graph .lcontainer").append("div")
-            .attr("class", "legend1")
-            .append('svg')
-            .attr("width", 170)
-            .attr("height", 500);
-
-        var legend2 = d3.select("#line-graph .lcontainer").append("div")
-            .attr("class", "legend2")
-            .append('svg')
-            .attr("width", 200)
-            .attr("height", 500);
-    
-
-        legend.selectAll('text')
-            .data(b.slice(0, 17))
-            .enter()
-            .append('text')
-            .text(d => getStateName(d))
-            .attr('x', 35)
-            .attr('y', function (d, i) {
-                return i * 20 + 2;
-            })
-            .attr('text-anchor', 'start')
-
-            .attr("class",d=>d)
-            .attr('alignment-baseline', 'hanging');
-
-
-        legend1.selectAll('text')
-            .data(b.slice(18, 34))
-            .enter()
-            .append('text')
-            .text(d => getStateName(d))
-            .attr('x', 35)
-            .attr('y', function (d, i) {
-                return i * 20 + 2;
-            })
-            .attr('text-anchor', 'start')
-
-            .attr("class", d=> d)
-            .attr('alignment-baseline', 'hanging')
-            .classed("hightlight",false);
-
-        legend2.selectAll('text')
-            .data(b.slice(35, 50))
-            .enter()
-            .append('text')
-            .text(d => getStateName(d))
-            .attr('x', 35)
-            .attr('y', function (d, i) {
-                return i * 20 + 2;
-            })
-            .attr('text-anchor', 'start')
-            .attr("class",d=>d)
-            .attr('alignment-baseline', 'hanging');
-
-        const dot = svg.append("g")
-            .attr("display", "none");
-
-        dot.append("circle")
-            .attr("r", 2.5);
-
-        dot.append("text")
-            .style("font", "10px sans-serif")
-            .attr("text-anchor", "middle")
-            .attr("y", -8);
-
-    function legendTextMouseMove(s) {
-        var txt = d3.selectAll("#line-graph .lcontainer .legend ." + s);
-        var txt1 = d3.selectAll("#line-graph .lcontainer .legend1 ." + s);
-        var txt2 = d3.selectAll("#line-graph .lcontainer .legend2 ." + s);
-           /// console.log(txt);
-        txt.classed("highlight_text",true);
-        txt1.classed("highlight_text", true);
-        txt2.classed("highlight_text", true);
-            var content = "";
-            var selectState = stateAverages.filter(d => (d.key == s));
-            if (selectState.length == 1) {
-                content = "State: " + getStateName(s) +
-                    " , Average : $" + d3.format(",d")(selectState[0].value["2019-08"]);
-            }
-
-            svg.append("text")
-                .attr("class", "label_text")
-                .attr("x", 100)
-                .attr("y", 40)
-                .attr("font-size",20)
-                .text(content)
-                .raise();
-
-
-            path.attr("stroke", d => d.state === s ? "blue" : "#ddd").filter(d => d.state === s).raise();
-
-        }
-        function legendMouseEnter() {
-            rect = d3.select(this);
-            //rect.classed("highlight", true);
-            path.style("mix-blend-mode", null).attr("stroke", d => "blue")
-        }
-
-    function legendMouseLeft(s) {
-        var txt = d3.selectAll("#line-graph .lcontainer .legend ." + s);
-        var txt1 = d3.selectAll("#line-graph .lcontainer .legend1 ." + s);
-        var txt2 = d3.selectAll("#line-graph .lcontainer .legend2 ." + s);
-        /// console.log(txt);
-        txt.classed("highlight_text", false);
-        txt1.classed("highlight_text", false);
-        txt2.classed("highlight_text", false);
-        d3.selectAll("#line-graph .vcontainer .graph .label_text ").remove();
-           // label.classed("highlight2", true);
-            path.style("mix-blend-mode", "multiply").attr("stroke", d => "blue");
-        }
-        legend.selectAll('text')
-            .on("mousemove", d => legendTextMouseMove(d))
-            .on("mouseenter", legendMouseEnter)
-            .on("mouseleave", legendMouseLeft);
-        legend1.selectAll('text')
-            .on("mousemove", d => legendTextMouseMove(d))
-            .on("mouseenter", legendMouseEnter)
-            .on("mouseleave", legendMouseLeft);
-        legend2.selectAll('text')
-            .on("mousemove", d => legendTextMouseMove(d))
-            .on("mouseenter", legendMouseEnter)
-            .on("mouseleave", legendMouseLeft);
-
-
-
-
-    }
-function createLines(states, statesAverages,keys) {
-    
-    b = [];
-    for (var prop in statesAverages)
-        b.push(statesAverages[prop].key);
-
-    function getStateName(abv) {
-        var temp="";
-        for (var prop in states)
-            if ((d3.entries(states[prop]).filter(d => d.value == abv)).length == 1)
-             return (d3.entries(states[prop]).filter(d => d.value == abv))[0].key
-    }
-    var homeValues = statesAverages.map(function (d) {
-        return {
-            state: d.key,
-            values: keys.map(k => (+d.value[k] == 0) ? 49500 : +d.value[k] )
-        }
-    });
-    var dates = keys.map(d3.utcParse("%Y-%m"));
-
-    data = { series: homeValues, years: dates };
-    
-    var height = 300;
-    var width = 750;
-    var margin = { top: 20, bottom: 50, left: 70, right: 20 };
-    var svg = d3.select("#line-graph .vcontainer .graph").append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-        .append("g") // add a group to translate everything according to margins
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-
-    y = d3.scaleLinear()
-        .domain([0, d3.max(data.series, d => d3.max(d.values))]).nice()
-        .range([height , margin.top]);
-
-    // yAxis will automatically use names from the domain as labels
-    var yAxis = d3.axisLeft().scale(y)
-        .ticks(height / 50).tickSizeOuter(0)
-        .tickFormat(d3.format(".0s"));
-
-    svg.append("g")
-        .call(yAxis);
-    
-
-    x = d3.scaleUtc()
-        .domain(d3.extent(data.years))
-        .range([0, width - margin.right]);
-
-    var xAxis = d3.axisBottom().scale(x)
-        .ticks(width / 40).tickSizeOuter(0)
-        .tickFormat(d3.format("d"));
-
-    svg.append("g")
-        .attr("transform", "translate(0," + height + ")") // move to bottom
-        .call(d3.axisBottom(x).ticks(width / 30).tickSizeOuter(0));//xAxis); // draw axis
-
-    line = d3.line()
-        .defined(d => !isNaN(d))
-        .x((d, i) => x(data.years[i]))
-        .y(d => y(d));
-    function color(d) {
-        var color = d3.scaleOrdinal().range(d3.schemeCategory10)
-            .domain(b);
-        return color(d)
-    }
-
-    const path = svg.append("g") 
-        .attr("stroke","none")
-        .selectAll("path")
-        .data(data.series)
-        .join("path")
-        .style("mix-blend-mode", "multiply")
-        .attr("d", d => line(d.values))
-        .attr("stroke", d => "blue")//color(d.state))
-        .attr("class", "line")
-        .attr("fill", "none");
-
-    svg.call(hover, path);
-    svg.append("text")
-        .attr("class", "label")
-        .attr("x", width / 2)
-        .attr("y", height + 40)
-        .text("Years");
-
-    svg.append("text")
-        .attr("class", "label")
-        .attr("x", -100)
-        .attr("y", height / 2)
-        .attr("transform", "rotate(-90,-40," + (height / 2) + ")")
-        .style("text-anchor", "center")
-        .text("HomeValues($US)");
-
-    function hover(svg, path) {
-        svg.style("position", "relative");
-
-        if ("ontouchstart" in document) svg
-            .style("-webkit-tap-highlight-color", "transparent")
-            .on("touchmove", moved)
-            .on("touchstart", entered)
-            .on("touchend", left)
-        else svg
-            .on("mousemove", moved)
-            .on("mouseenter", entered)
-            .on("mouseleave", left);
-
-        const dot = svg.append("g")
-            .attr("display", "none");
-
-        dot.append("circle")
-            .attr("r", 2.5);
-
-        dot.append("text")
-            .style("font", "15px sans-serif")
-            .attr("text-anchor", "middle")
-            .attr("y", -8);
-        
-        function moved() {
-            line = d3.select(this);
-            d3.event.preventDefault();
-            const ym = 1510000 - y.invert(d3.event.layerY) * -1;
-            const xm = x.invert(d3.event.layerX - 80);
-            
-            const i1 = d3.bisectLeft(data.years, xm, 1);
-            const i0 = i1 - 1;
-            const i = xm - data.years[i0] > data.years[i1] - xm ? i1 : i0;
-            const s = data.series.reduce((a, b) => Math.abs(a.values[i] - ym) < Math.abs(b.values[i] - ym) ? a : b);
-
-            path.attr("stroke", d => d === s ? "blue" : "#ddd").filter(d => d === s).raise();//color(d.state)
-
-            dot.attr("transform", `translate(${x(data.years[i])},${y(s.values[i])})`);
-            var formatTime = d3.timeFormat("%B-%Y");
-            dot.select("text").text(getStateName(s.state) + "," + formatTime(xm) + ",$" + d3.format(",d")(ym));
-        }
-
-        function entered() {
-            path.style("mix-blend-mode", null).attr("stroke", d => "blue")//attr("stroke", "green");//"#ddd");
-            dot.attr("display", null);
-        }
-
-        function left() {
-            path.style("mix-blend-mode", "multiply").attr("stroke", d =>"blue" );//attr("stroke", "red");color(d.state)
-            dot.attr("display", "none");
-        }
-    }
-    createLineLegend(statesAverages, b, getStateName, color, path, svg, x, y);
-}
-
-
-
 function groupBy(list, keyGetter) {
     const map = new Map();
     list.forEach((item) => {
@@ -811,9 +493,6 @@ function calc_countyAverages(zillowDataAvg, states) {
     return countyAverage;
 
 }
-
-
-
 
 Promise.all([
     d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json"),
