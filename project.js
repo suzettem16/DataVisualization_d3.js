@@ -43,17 +43,9 @@ function createVis(data) {
   const states = data[3];
   const stateYearCsv = data[4];
 
-
-  const mapDataState = topojson.feature(topoUs, topoUs.objects.states).features;
-  const countyAverages = calc_countyAverages(zillowDataAvg, states);
-
-
-  const stateYearLookup = {};
-
-
-  //adding years from data
-  var years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
-    .map(y => +y);
+    //adding years from data
+const years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
+.map(y => +y);
 //   const years = (stateYearCsv.columns ? stateYearCsv.columns : Object.keys(stateYearCsv[0]))
 //     .filter(k => k !== "State")
 //     .map(y => +y);
@@ -61,6 +53,14 @@ function createVis(data) {
 const minYear = d3.min(years);
 const maxYear = d3.max(years);
 window.userYear = maxYear; //default user value
+
+
+  const mapDataState = topojson.feature(topoUs, topoUs.objects.states).features;
+  const countyAverages = calc_countyAverages(zillowDataAvg, years, states);
+
+
+  const stateYearLookup = {};
+
 
 
   stateYearCsv.forEach(row => {
@@ -100,7 +100,7 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '17', createBubble,
 
     const selectRegions = zillowDataAvg
       .filter(d => d.State == selectAb && d.CountyName == selectedCounty)
-      .sort((a, b) => b["2019"] - a["2019"]);
+      .sort((a, b) => b[String(userYear)] - a[String(userYear)]); //changed to userYear
 
 
     d3.selectAll("#linked-advanced .rec-class .state-map .county").classed("highlightState", false);
@@ -281,17 +281,18 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
     const color1 = d3.scaleSequential([0, 800000], d3.interpolateViridis);
     let color = "#d3d3d3";
-    if (selectCounty.length === 1) color = color1(selectCounty[0]["2019"]);
+    if (selectCounty.length === 1) color = color1(selectCounty[0][String(userYear)]); //changed to userYear
     return color;
   }
 
 
   function tip_county(countyName) {
-    const year = "2019";
+    // const year = "2019";
     const selectCounty = countyAverages.filter(d => d.County == countyName && d.State == selectAb);
     const content =
       selectCounty.length === 1
-        ? `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average: $${d3.format(",d")(selectCounty[0][year])}`
+      //added userYear 
+        ? `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average: $${d3.format(",d")(selectCounty[0][2019])}` 
         : `State: ${state[0].properties.name}<br>${countyName}<br>No data`;
     tooltip.transition().duration(50).style("display", "inline").style('opacity', 0.9);
     tooltip.html(content).style('left', d3.event.pageX + 'px').style('top', d3.event.pageY - 28 + 'px');
@@ -361,11 +362,12 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         }});
 
     //     working on this
-    // yearSlider.noUiSlider.on('update', function(values, handle){
-    //     userYear = parseFloat(values[handle]);
-    //     window.repaintUSMap(userYear) //added
-    //     window.repaintStateMap(userYear) //added
-    // });
+    yearSlider.noUiSlider.on('update', function(values, handle){
+        userYear = parseFloat(values[handle]);
+        d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
+        // window.repaintUSMap(userYear) //added
+        // window.repaintStateMap(userYear) //added
+    });
 
 
 }
@@ -535,9 +537,7 @@ color.domain([0, fixedMax]);
   const path = d3.geoPath().projection(scale(0.6));
 
 
-  let currentYear = fixedLegendYear;
-  d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + currentYear);
-
+//   let currentYear = fixedLegendYear;
 
   const statesSel = mapSvg.selectAll("path")
     .data(topojson.feature(data, data.objects.states).features)
@@ -545,13 +545,13 @@ color.domain([0, fixedMax]);
     .attr("d", path)
     .attr("class", "states")
     .attr("stroke", "black")
-    .on('mouseover', d => tip(d.properties.name, currentYear))
+    .on('mouseover', d => tip(d.properties.name, userYear)) //change to userYear, previous CurrentYear
     .on('mouseout', () => { tooltip.transition().duration(500).style('opacity', 0); })
     .on('click', d => createStateMap(data, mapDataState, countyAverages, states, d.id, createBubble, zillowDataAvg))
 
 
     .attr("transform", "translate(0,40)")
-    .attr("fill", d => colorMapState(d.properties.name, currentYear));
+    .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear, previous current year
 
 
     //REVIEWWWW
@@ -573,9 +573,9 @@ color.domain([0, fixedMax]);
     function updateMapColors() {
         const currentVals = Object.keys(stateYearLookup)
             .map(ab => {
-                const val = stateYearLookup[ab][currentYear];
+                const val = stateYearLookup[ab][userYear]; //changed to userYear
                 if (isNaN(val)) return null;
-                return adjustInflation ? adjustValueForInflation(val, currentYear) : val;
+                return adjustInflation ? adjustValueForInflation(val, userYear) : val; //changed to userYear
             })
             .filter(v => v !== null && !isNaN(v));
 
@@ -584,7 +584,7 @@ color.domain([0, fixedMax]);
         color.domain([0, newMax]);
 
         statesSel.transition().duration(400)
-            .attr("fill", d => colorMapState(d.properties.name, currentYear));
+            .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear
     }  
 
 
@@ -611,30 +611,45 @@ function groupBy(list, keyGetter) {
 }
 
 
-function calc_countyAverages(zillowDataAvg, states) {
+function calc_countyAverages(zillowDataAvg, yearsArr, states) {
   const countyAverage = [];
-  const grouped = groupBy(zillowDataAvg, d => (d.State));
+  const stateGroup = groupBy(zillowDataAvg, d => (d.State));
+  const yearsString = yearsArr.map(String);
 
 
   for (let j = 0; j < states.length; j++) {
-    const [key, value] = Object.entries(states[j]);
-    const c_names = grouped.get(key[1]);
+    const [[name, abbr]] = Object.entries(states[j]);
+    const c_names = stateGroup.get(abbr);
     const grouped_byCounty = groupBy(c_names, d => d.CountyName);
-    const county_grp = Array.from(grouped_byCounty);
+    // const county_grp = Array.from(grouped_byCounty);
 
 
-    for (let i = 0; i < county_grp.length; i++) {
-      let tot2019 = 0;
-      for (let k = 0; k < county_grp[i][1].length; k++) {
-        tot2019 = tot2019 + parseInt(county_grp[i][1][k]["2019"]);
-      }
+    //pre computing for each year
+    for( const [countyName, rows] of grouped_byCounty.entries()) {
+        const record = {State: abbr, County: countyName};
+        for (const y of yearsString) {
+            record[y] = Math.round(d3.mean(rows, r => +r[y]) || 0);
+            
+        }
+        countyAverage.push(record);
 
-
-      countyAverage.push({
-        "State": key[1], "County": county_grp[i][0],
-        "2019": parseInt(tot2019 / county_grp[i][1].length)
-      });
     }
+
+
+    // for (let i = 0; i < county_grp.length; i++) {
+    //   let tot2019 = 0;
+    //   for (let k = 0; k < county_grp[i][1].length; k++) {
+    //     tot2019 = tot2019 + parseInt(county_grp[i][1][k]["2019"]);
+    //   }
+
+
+
+
+    //   countyAverage.push({
+    //     "State": key[1], "County": county_grp[i][0],
+    //     "2019": parseInt(tot2019 / county_grp[i][1].length)
+    //   });
+    // }
   }
   return countyAverage;
 }
