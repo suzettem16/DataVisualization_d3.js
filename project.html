@@ -94,22 +94,48 @@
       h3 {
         color: coral;
       }
+
+      /* Added: inflation toggle styling */
+      #inflation-toggle-container {
+        margin-left: 85px;
+        margin-top: 10px;
+        font: 16px sans-serif;
+        color: purple;
+      }
+
+      #inflationToggle {
+        transform: scale(1.2);
+        margin-right: 8px;
+      }
     </style>
+
     <script src="https://d3js.org/d3.v5.min.js"></script>
     <script src="https://d3js.org/topojson.v2.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
   </head>
+
   <body>
     <h1>Investigate further</h1>
     <h3>(Click on state to display counties)</h3>
+
     <div id="linked-advanced" class="link-adv-class">
       <div class="map-container">
         <div class="us-map"></div>
       </div>
+
       <div id="rec-sys" class="rec-class">
         <div class="Bcontainer">
-          <div class="label">Home Value Ranges(In multiples of Thousands)</div>
+          <div class="label">Home Value Ranges (In multiples of Thousands)</div>
           <div class="controls"></div>
+
+          <!-- 🆕 Inflation Toggle Added Here -->
+          <div id="inflation-toggle-container">
+            <label>
+              <input type="checkbox" id="inflationToggle" />
+              Adjust for Inflation (2019 USD)
+            </label>
+          </div>
+
           <div class="label" style="margin-top: 20px">Select Year</div>
           <div class="controls-year"></div>
         </div>
@@ -117,7 +143,7 @@
       </div>
 
       <div id="Bubble-container" class="Bubble-container-class">
-        <div class="label">Top 10 Home value Regions</div>
+        <div class="label">Top 10 Home Value Regions</div>
         <div class="bubble-chart"></div>
       </div>
     </div>
@@ -125,3 +151,6 @@
     <script type="text/javascript" src="project.js"></script>
   </body>
 </html>
+
+
+
