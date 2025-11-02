@@ -51,9 +51,16 @@ function createVis(data) {
   const stateYearLookup = {};
 
 
-  const years = (stateYearCsv.columns ? stateYearCsv.columns : Object.keys(stateYearCsv[0]))
-    .filter(k => k !== "State")
+  //adding years from data
+  var years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
     .map(y => +y);
+//   const years = (stateYearCsv.columns ? stateYearCsv.columns : Object.keys(stateYearCsv[0]))
+//     .filter(k => k !== "State")
+//     .map(y => +y);
+
+const minYear = d3.min(years);
+const maxYear = d3.max(years);
+window.userYear = maxYear; //default user value
 
 
   stateYearCsv.forEach(row => {
@@ -63,8 +70,9 @@ function createVis(data) {
   });
 
 
-  createSlider("#linked-advanced .rec-class .Bcontainer .controls");        
-  createYearSlider("#linked-advanced .rec-class .Bcontainer .controls-year", years);
+  createSlider("#linked-advanced .rec-class .Bcontainer .controls");   
+  //adding year slider call     
+  createYearSlider("#linked-advanced .rec-class .Slidercontainer .yearSlider", years, minYear, maxYear);
 
 
   createUSMap(
@@ -335,23 +343,50 @@ function createSlider(sliderId) {
   });
 }
 
+function createYearSlider(yearID, yearsVar, minY, maxY) {
+    var yearSlider = document.querySelector(yearID);
+    noUiSlider.create(yearSlider, {
+        start: [maxY],
+        connect: [true, false],
+        step: 1,
+        range: {min: minY, max: maxY},
+        pips: {
+                  mode: 'values',
+                //   values: yearsVar,
+                  values: yearsVar.filter((d, i) => i % 3 == 0 || i == yearsVar.length-1),
+                  density: 4
 
-function createYearSlider(sliderId, years) {
-  const slider = document.querySelector(sliderId);
-  if (!slider || slider.noUiSlider) return;
-  const minY = d3.min(years), maxY = d3.max(years);
-  noUiSlider.create(slider, {
-    start: [maxY],
-    step: 1,
-    connect: [true, false],
-    range: { min: minY, max: maxY },
-    pips: {
-      mode: 'values',
-      values: years.filter((d, i) => i % 2 === 0),
-      density: 2
-    }
-  });
+            // mode: 'steps',
+            // density: 6
+        }});
+
+    //     working on this
+    // yearSlider.noUiSlider.on('update', function(values, handle){
+    //     userYear = parseFloat(values[handle]);
+    //     window.repaintUSMap(userYear) //added
+    //     window.repaintStateMap(userYear) //added
+    // });
+
+
 }
+
+
+// function createYearSlider(sliderId, years) {
+//   const slider = document.querySelector(sliderId);
+//   if (!slider || slider.noUiSlider) return;
+//   const minY = d3.min(years), maxY = d3.max(years);
+//   noUiSlider.create(slider, {
+//     start: [maxY],
+//     step: 1,
+//     connect: [true, false],
+//     range: { min: minY, max: maxY },
+//     pips: {
+//       mode: 'values',
+//       values: years.filter((d, i) => i % 2 === 0),
+//       density: 2
+//     }
+//   });
+// }
 
 
 function sliderChange(sliderId, states, mapDataState, countyAverages, divId, stateId) {
@@ -519,21 +554,22 @@ color.domain([0, fixedMax]);
     .attr("fill", d => colorMapState(d.properties.name, currentYear));
 
 
-  const yearSlider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls-year");
-  if (yearSlider && yearSlider.noUiSlider) {
-    yearSlider.noUiSlider.off("update");
-    yearSlider.noUiSlider.on("update", function (values) {
-      const y = Math.round(+values[0]);
-      if (y === currentYear) return;
-      currentYear = y;
-      d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + currentYear);
-      statesSel
-        .on('mouseover', d => tip(d.properties.name, currentYear))
-        .transition()
-        .duration(400)
-        .attr("fill", d => colorMapState(d.properties.name, currentYear));
-    });
-  }
+    //REVIEWWWW
+//   const yearSlider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls-year");
+//   if (yearSlider && yearSlider.noUiSlider) {
+//     yearSlider.noUiSlider.off("update");
+//     yearSlider.noUiSlider.on("update", function (values) {
+//       const y = Math.round(+values[0]);
+//       if (y === currentYear) return;
+//       currentYear = y;
+//       d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + currentYear);
+//       statesSel
+//         .on('mouseover', d => tip(d.properties.name, currentYear))
+//         .transition()
+//         .duration(400)
+//         .attr("fill", d => colorMapState(d.properties.name, currentYear));
+//     });
+//   }
     function updateMapColors() {
         const currentVals = Object.keys(stateYearLookup)
             .map(ab => {

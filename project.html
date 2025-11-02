@@ -80,6 +80,7 @@
       }
       .rec-class .label {
         margin-left: 85px;
+        text-align: center;
         font: 20px sans-serif;
         color: purple;
       }
@@ -93,6 +94,28 @@
       }
       h3 {
         color: coral;
+      }
+
+      /* Year Slider */
+      #rec-sys .yearSlider {
+        width: 500px;
+        margin-left: 100px;
+        margin-top: 20px;
+        margin-bottom: 80px;
+      }
+
+      .noUi-value {
+        color: black;
+        padding: 2px;
+      }
+      .noUi-connect {
+        background: coral;
+      }
+      .noUi-marker {
+        background: black;
+      }
+      .noUi-marker-sub {
+        background: black;
       }
 
       /* Added: inflation toggle styling */
@@ -122,8 +145,15 @@
       <div class="map-container">
         <div class="us-map"></div>
       </div>
+  
 
       <div id="rec-sys" class="rec-class">
+        <!--Year Slider-->
+        <div class="Slidercontainer">
+          <div class="label">View Home Data by Year Between 1996-2019</div>
+          <div class="yearSlider"></div>
+          </div>
+
         <div class="Bcontainer">
           <div class="label">Home Value Ranges (In multiples of Thousands)</div>
           <div class="controls"></div>
@@ -136,16 +166,17 @@
             </label>
           </div>
 
-          <div class="label" style="margin-top: 20px">Select Year</div>
-          <div class="controls-year"></div>
+          <!-- <div class="label" style="margin-top: 20px">Select Year</div>
+          <div class="controls-year"></div> -->
         </div>
         <div class="state-map"></div>
       </div>
 
-      <div id="Bubble-container" class="Bubble-container-class">
+      <!-- <div id="Bubble-container" class="Bubble-container-class">
         <div class="label">Top 10 Home Value Regions</div>
         <div class="bubble-chart"></div>
-      </div>
+      </div> -->
+  
     </div>
 
     <script type="text/javascript" src="project.js"></script>
