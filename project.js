@@ -1,4 +1,6 @@
-
+// ===== CHANGE: Added inflation adjustment system (NEW FEATURE) =====
+// Original code did not have inflation adjustment. This allows users to view
+// home values adjusted to 2019 USD to account for inflation over time.
 let adjustInflation = false;
 
 const inflationFactors = {
@@ -28,6 +30,9 @@ document.addEventListener("DOMContentLoaded", () => { // Checkbox logic
 });
 
 
+// ===== CHANGE: Added inflation adjustment function (NEW FEATURE) =====
+// Original code did not adjust for inflation. This function converts historical
+// values to 2019 USD equivalent using inflation factors.
 function adjustValueForInflation(value, year) {
   if (!adjustInflation) return value;
   const factor = inflationFactors[year] ?? 1.0;
@@ -46,8 +51,14 @@ function createVis(data) {
   const zillowDataRaw = data[1];
   const zillowDataAvg = data[2];
   const states = data[3];
+  // ===== CHANGE: Data loading changed =====
+  // Original: data[4] was statesTopoJson (JSON)
+  // Updated: data[4] is now stateYearCsv (CSV) - State_Zhvi_Averages.csv
+  // This provides state-level year data for multi-year visualization
   const stateYearCsv = data[4];
 
+    // ===== CHANGE: Added year extraction from stateYearCsv =====
+    // Original code hardcoded "2019" throughout. Now extracts all years dynamically
     //adding years from data
 const years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
 .map(y => +y);
@@ -57,13 +68,21 @@ const years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
 
 const minYear = d3.min(years);
 const maxYear = d3.max(years);
+// ===== CHANGE: Added global userYear variable =====
+// Original code used hardcoded "2019". Now userYear is dynamic and controlled by slider
 window.userYear = minYear; //default user value - start from first year
 
 
   const mapDataState = topojson.feature(topoUs, topoUs.objects.states).features;
+  // ===== CHANGE: calc_countyAverages now accepts yearsArr parameter =====
+  // Original: calc_countyAverages(zillowDataAvg, states) - only calculated for 2019
+  // Updated: calc_countyAverages(zillowDataAvg, years, states) - calculates for all years
   const countyAverages = calc_countyAverages(zillowDataAvg, years, states);
 
 
+  // ===== CHANGE: Added stateYearLookup object (NEW FEATURE) =====
+  // Original code calculated state averages on-the-fly. Now pre-builds lookup table
+  // from State_Zhvi_Averages.csv for faster year-based updates
   const stateYearLookup = {};
 
 
@@ -76,9 +95,14 @@ window.userYear = minYear; //default user value - start from first year
 
 
   createSlider("#linked-advanced .rec-class .Bcontainer .controls");   
+  // ===== CHANGE: Added year slider call (NEW FEATURE) =====
+  // Original code did not have year slider - only displayed 2019 data
   //adding year slider call     
 createYearSlider("#year-slider-container .yearSlider", years, minYear, maxYear);
 
+  // ===== CHANGE: createUSMap signature updated =====
+  // Original: createUSMap(topoUs, mapDataState, countyAverages, states, stateAverages, createStateMap, statesTopoJson, createBubble, zillowDataAvg)
+  // Updated: Added stateYearLookup and years parameters for multi-year support
   createUSMap(
     topoUs, mapDataState, countyAverages, states,
     createStateMap, createBubble,
@@ -86,6 +110,9 @@ createYearSlider("#year-slider-container .yearSlider", years, minYear, maxYear);
   );
 
 
+// ===== CHANGE: createStateMap signature updated =====
+// Original: createStateMap(statesTopoJson, mapDataState, countyAverages, states, stateId, createBubble, zillowDataAvg)
+// Updated: First parameter changed from statesTopoJson to topoUs (uses direct county features now)
 createStateMap(topoUs, mapDataState, countyAverages, states, '06', createBubble, zillowDataAvg);
 
   function createBubble(zillowDataAvg, mapDataState, states, selectedCounty, selectedState) {
@@ -101,6 +128,8 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '06', createBubble,
 
     const selectRegions = zillowDataAvg
       .filter(d => d.State == selectAb && d.CountyName == selectedCounty)
+      // ===== CHANGE: Changed from hardcoded "2019" to userYear =====
+      // Original: .sort((a, b) => b["2019"] - a["2019"])
       .sort((a, b) => b[String(userYear)] - a[String(userYear)]); //changed to userYear
 
 
@@ -131,6 +160,8 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '06', createBubble,
     const pack = data => d3.pack()
       .size([width - 2, height - 2])
       .padding(4)
+      // ===== CHANGE: Changed from hardcoded "2019" to userYear =====
+      // Original: .sum(d => d["2019"])
       (d3.hierarchy({ children: data }).sum(d => d[String(userYear)])); //changed from "2019" to userYear
 
 
@@ -162,6 +193,8 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '06', createBubble,
 
 
       const format = d3.format(",d");
+      // ===== CHANGE: Changed from hardcoded "2019" to userYear =====
+      // Original: .text(d => `Average : ${format(d.data["2019"])}`)
       leaf.append("title").text(d => `Average : ${format(d.data[userYear])}`); //changed to userYear
     }
   }
@@ -231,11 +264,20 @@ function createLegendDiv(colorScale, divId, vertical = false, reverse = false, s
 }
 
 
+// ===== CHANGE: createStateMap function signature and implementation updated =====
+// Original: createStateMap(statesTopoJson, mapDataState, countyAverages, states, stateId, createBubble, zillowDataAvg)
+//   - Loaded individual state GeoJSON files dynamically from statesTopoJson
+// Updated: createStateMap(topoUs, mapDataState, countyAverages, states, stateId, createBubble, zillowDataAvg)
+//   - Uses topoUs (already loaded) to extract county features directly
+//   - No longer needs to load individual state GeoJSON files
+//   - Added zoom functionality, year-based updates, inflation support
 function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, createBubble, zillowDataAvg) {
   const height = 300;
   const width = 300;
   const margin = { top: 0, bottom: 50, left: 100, right: 20 };
 
+  // ===== CHANGE: Added state ID normalization =====
+  // Original code did not normalize state IDs - could cause comparison issues
   // Normalize stateId to string for consistent comparison
   const normalizedStateId = String(stateId);
 
@@ -274,6 +316,12 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     if (key[0] === state[0].properties.name) selectAb = key[1];
   }
 
+  // ===== CHANGE: Changed from dynamic GeoJSON loading to direct county extraction =====
+  // Original: d3.json(statesTopoJson[stateId]).then(function (state) { ... })
+  //   - Loaded individual state GeoJSON file from GitHub on state click
+  // Updated: Extract counties directly from already-loaded topoUs
+  //   - Faster, no network requests needed
+  //   - Uses county FIPS codes to filter by state
   const counties = topojson.feature(topoUs, topoUs.objects.counties).features
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
@@ -281,12 +329,18 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const stateData = topojson.feature(topoUs, topoUs.objects.states).features
     .filter(d => String(d.id) === normalizedStateId);
 
+  // ===== CHANGE: Changed projection from geoAlbers to geoIdentity =====
+  // Original: var projection = d3.geoAlbers().precision(0).scale(height * 2).translate([width / 2, height / 2])
+  //           projection.fitExtent([[20, 20], [width - 20, height - 20]], counties)
+  // Updated: Use geoIdentity with fitSize - simpler and better for state-level maps
   // Use geoIdentity with fitSize for county map projection
   const projection = d3.geoIdentity()
     .fitSize([width, height], stateData[0]);
 
   const path = d3.geoPath().projection(projection);
 
+  // ===== CHANGE: Added zoom functionality (NEW FEATURE) =====
+  // Original code did not have zoom capability for county maps
   // Add zoom behavior
   const zoom = d3.zoom()
     .scaleExtent([1, 8])
@@ -307,6 +361,11 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   }).filter(v => v != null && !isNaN(v) && v > 0);
   const fixedMax = d3.max(fixedVals) || 800000;
 
+  // ===== CHANGE: Changed color scale from interpolateViridis to interpolateYlOrRd =====
+  // Original: d3.scaleSequential([0, 800000], d3.interpolateViridis)
+  // Updated: d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax])
+  //   - Uses Yellow-Orange-Red scale instead of Viridis
+  //   - Fixed max calculated dynamically based on state counties
   // Create county color scale (same as US map for consistency)
   // Store both the scale and the max value so we can update the domain if needed
   const countyColor = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
@@ -318,9 +377,14 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
+      // ===== CHANGE: Changed from hardcoded "2019" to userYear =====
+      // Original: var year = "2019"; let v = selectCounty[0]["2019"];
+      // Updated: Uses userYear for dynamic year selection
       let v = selectCounty[0][String(userYear)];
       // Check if value exists for this year
       if (v != null && v !== undefined && !isNaN(v) && v > 0) {
+        // ===== CHANGE: Added inflation adjustment support =====
+        // Original code did not adjust for inflation
         // Apply inflation adjustment if needed
         v = adjustInflation ? adjustValueForInflation(v, userYear) : v;
         // Ensure value is within scale domain
@@ -341,7 +405,10 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     const selectCounty = countyAverages.filter(d => d.County == countyName && d.State == selectAb);
     let content;
     if (selectCounty.length === 1) {
+      // ===== CHANGE: Changed from hardcoded "2019" to userYear =====
+      // Original: var year = "2019"; var v = selectCounty[0]["2019"];
       let v = selectCounty[0][String(userYear)];
+      // ===== CHANGE: Added inflation adjustment =====
       if (v != null) v = adjustValueForInflation(v, userYear);
       const displayYear = adjustInflation ? `${userYear} (2019 USD)` : userYear;
       content = `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average in ${displayYear}: $${d3.format(",.0f")(v)}`;
@@ -365,6 +432,8 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", normalizedStateId))
     .transition().duration(1000);
 
+  // ===== CHANGE: Added global state management for year-based updates =====
+  // Original code did not have update functions - maps were static for 2019
   // Store counties selection and related data globally for year updates
   // Store these in the closure scope AND globally to ensure they're always accessible
   window.countiesSelection = countiesSel;
@@ -380,6 +449,9 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const storedCountyColor = countyColor;
   const storedFixedMax = fixedMax;
 
+  // ===== CHANGE: Added updateCountyColors function (NEW FEATURE) =====
+  // Original code did not update county colors - they were static for 2019
+  // This function updates county map colors when year slider changes
   // Store counties selection for year updates
   window.updateCountyColors = function(immediate = false) {
     try {
@@ -543,6 +615,9 @@ function createSlider(sliderId) {
     pips: { mode: 'steps', stepped: true, density: 4 }
   });
 }
+// ===== CHANGE: Added createYearSlider function (NEW FEATURE) =====
+// Original code did not have year slider. This enables users to select any year
+// between 1996-2019 and includes auto-timelapse animation functionality
 function createYearSlider(yearID, yearsVar, minY, maxY) {
     var yearSlider = document.querySelector(yearID);
     noUiSlider.create(yearSlider, {
@@ -979,6 +1054,14 @@ function sliderChange(sliderId, states, mapDataState, countyAverages, divId, sta
 }
 
 
+// ===== CHANGE: createUSMap function signature and implementation updated =====
+// Original: createUSMap(data, mapDataState, countyAverages, states, stateAverages, createStateMap, statesTopoJson, createBubble, zillowDataAvg)
+//   - Used stateAverages (calculated on-the-fly from zillowDataRaw)
+//   - Hardcoded year "2019-08" for coloring
+// Updated: createUSMap(data, mapDataState, countyAverages, states, createStateMap, createBubble, zillowDataAvg, stateYearLookup, years)
+//   - Uses stateYearLookup (pre-calculated from State_Zhvi_Averages.csv)
+//   - Supports dynamic year selection via userYear
+//   - Added inflation adjustment, year label, update functions
 function createUSMap(
   data, mapDataState, countyAverages, states,
   createStateMap, createBubble, zillowDataAvg,
@@ -991,6 +1074,8 @@ function createUSMap(
   d3.selectAll("#linked-advanced .map-container .us-map svg ").remove();
   d3.selectAll("#linked-advanced .map-container .us-map .tooltip").remove();
   d3.selectAll("#linked-advanced .map-container .us-map .legend").remove();
+  // ===== CHANGE: Added year label removal =====
+  // Original code did not have year label display
   d3.selectAll("#linked-advanced .map-container .us-map .year-label").remove();
 
 
@@ -1006,13 +1091,20 @@ function createUSMap(
     .style('opacity', 0);
 
 
+  // ===== CHANGE: Added year label display (NEW FEATURE) =====
+  // Original code did not display current year on the map
   d3.select("#linked-advanced .map-container .us-map")
     .append("div")
     .attr("class", "year-label");
 
 
+  // ===== CHANGE: Changed color scale from interpolateViridis to interpolateYlOrRd =====
+  // Original: var color = d3.scaleSequential([0, 800000], d3.interpolateViridis);
+  // Updated: Uses Yellow-Orange-Red scale with dynamic domain
   const color = d3.scaleSequential(d3.interpolateYlOrRd);
   const fixedLegendYear = d3.max(years) || 2019;
+  // ===== CHANGE: Added inflation adjustment support for legend =====
+  // Original: Used raw values from stateYearLookup[ab][year]
   const fixedVals = Object.keys(stateYearLookup)
   .map(ab => {
     const val = stateYearLookup[ab][fixedLegendYear];
@@ -1039,11 +1131,17 @@ color.domain([0, fixedMax]);
   }
 
 
+  // ===== CHANGE: Updated tip function for multi-year support =====
+  // Original: function tip(state) { var year = "2019-08"; var selectState = stateAverages.filter(...) }
+  // Updated: Accepts year parameter, uses stateYearLookup instead of stateAverages
   function tip(stateName, year) {
   const ab = toAbbr(stateName);
+  // ===== CHANGE: Changed from stateAverages lookup to stateYearLookup =====
   let v = ab && stateYearLookup[ab] ? stateYearLookup[ab][year] : undefined;
 
 
+  // ===== CHANGE: Added inflation adjustment =====
+  // Original code did not adjust for inflation
   if (v != null) v = adjustValueForInflation(v, year);
 
 
@@ -1067,9 +1165,15 @@ color.domain([0, fixedMax]);
 
 
 
+  // ===== CHANGE: Updated colorMapState for multi-year support =====
+  // Original: function colorMapState(state) { var year = "2019-08"; ... }
+  //   - Hardcoded year "2019-08", used stateAverages lookup
+  // Updated: Accepts year parameter, uses stateYearLookup, supports inflation
   function colorMapState(stateName, year) {
     const ab = toAbbr(stateName);
+    // ===== CHANGE: Changed from stateAverages to stateYearLookup =====
     let v = ab && stateYearLookup[ab] ? stateYearLookup[ab][year] : null;
+    // ===== CHANGE: Added inflation adjustment =====
     if (v != null) v = adjustValueForInflation(v, year);
     return (v == null) ? "#d3d3d3" : color(v);
   }
@@ -1091,14 +1195,20 @@ color.domain([0, fixedMax]);
     .attr("d", path)
     .attr("class", "states")
     .attr("stroke", "black")
+    // ===== CHANGE: Changed from hardcoded year to userYear =====
+    // Original: .on('mouseover', d => tip(d.properties.name)) - used hardcoded "2019-08"
     .on('mouseover', d => tip(d.properties.name, userYear)) //change to userYear, previous CurrentYear
     .on('mouseout', () => { tooltip.transition().duration(500).style('opacity', 0); })
     .on('click', d => createStateMap(data, mapDataState, countyAverages, states, d.id, createBubble, zillowDataAvg))
 
 
     .attr("transform", "translate(0,60)")
+    // ===== CHANGE: Changed from hardcoded year to userYear =====
+    // Original: .attr("fill", d => colorMapState(d.properties.name)) - used hardcoded "2019-08"
     .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear, previous current year
 
+  // ===== CHANGE: Added global state selection for year-based updates =====
+  // Original code did not store states selection - needed for dynamic year updates
   // Store states selection globally for slider updates
   window.statesSel = statesSel;
 
@@ -1119,6 +1229,9 @@ color.domain([0, fixedMax]);
 //         .attr("fill", d => colorMapState(d.properties.name, currentYear));
 //     });
 //   }
+    // ===== CHANGE: Added updateMapColors function (NEW FEATURE) =====
+    // Original code did not have this function - map was static for 2019
+    // This function updates US map state colors when year slider changes
     function updateMapColors() {
         // const currentVals = Object.keys(stateYearLookup)
         //     .map(ab => {
@@ -1156,6 +1269,9 @@ window.updateMapColors = updateMapColors;
     stateYearLookup // Pass stateYearLookup to enable state highlighting
   );
 
+  // ===== CHANGE: Added state rankings functionality (NEW FEATURE) =====
+  // Original code did not have state rankings. This displays states sorted by
+  // home value (cheapest to most expensive) for the currently selected year
   // Ranking system function
   window.updateRankings = function() {
     const rankingList = d3.select("#ranking-list");
@@ -1209,6 +1325,9 @@ window.updateMapColors = updateMapColors;
   // Initialize rankings
   updateRankings();
 
+  // ===== CHANGE: Added best county recommendation functionality (NEW FEATURE) =====
+  // Original code did not have best county recommendation. This finds and displays
+  // the county with the lowest home value for the currently selected year
   // Best County Recommendation function
   window.updateBestCounty = function() {
     const bestCountyInfo = d3.select("#best-county-info");
@@ -1310,6 +1429,13 @@ function groupBy(list, keyGetter) {
 }
 
 
+// ===== CHANGE: Updated calc_countyAverages function signature and implementation =====
+// Original: calc_countyAverages(zillowDataAvg, states)
+//   - Only calculated averages for year "2019"
+//   - Returned: {State, County, "2019": average}
+// Updated: calc_countyAverages(zillowDataAvg, yearsArr, states)
+//   - Calculates averages for ALL years (1996-2019)
+//   - Returns: {State, County, "1996": avg, "1997": avg, ..., "2019": avg}
 function calc_countyAverages(zillowDataAvg, yearsArr, states) {
   const countyAverage = [];
   const stateGroup = groupBy(zillowDataAvg, d => (d.State));
@@ -1323,6 +1449,9 @@ function calc_countyAverages(zillowDataAvg, yearsArr, states) {
     // const county_grp = Array.from(grouped_byCounty);
 
 
+    // ===== CHANGE: Pre-compute averages for all years instead of just 2019 =====
+    // Original: Only calculated for "2019"
+    // Updated: Loop through all years and calculate averages for each
     //pre computing for each year
     for( const [countyName, rows] of grouped_byCounty.entries()) {
         const record = {State: abbr, County: countyName};
@@ -1354,6 +1483,14 @@ function calc_countyAverages(zillowDataAvg, yearsArr, states) {
 }
 
 
+// ===== CHANGE: Data loading changed - replaced StateCountiesTopoJson with State_Zhvi_Averages.csv =====
+// Original Promise.all:
+//   - data[4] = d3.json("https://raw.githubusercontent.com/PSdiv/zillow/master/StateCountiesTopoJsons")
+//     (JSON file with URLs to individual state GeoJSON files)
+// Updated Promise.all:
+//   - data[4] = d3.csv("State_Zhvi_Averages.csv")
+//     (CSV file with state-level home values for all years 1996-2019)
+// This change enables multi-year visualization instead of static 2019 view
 Promise.all([
   d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-albers-10m.json"),
   d3.csv("https://raw.githubusercontent.com/PSdiv/zillow/master/City_Zhvi_AllHomes.csv"),

@@ -19,6 +19,9 @@
         pointer-events: none;
       }
 
+      /* ===== CHANGE: Added year-label styling (NEW FEATURE) =====
+         Original code did not have year label display. This shows
+         the currently selected year on the map visualization */
       .year-label {
         position: absolute;
         top: 60px; /* MODIFIED: Moved down */
@@ -73,6 +76,12 @@
         border: 1px solid black;
       }
 
+      /* ===== CHANGE: Restructured layout from row-based to column-based =====
+         Original: #linked-advanced had flex-direction: row (horizontal layout)
+         Updated: Changed to column-based layout with new containers:
+         - #map-and-controls: Contains year slider and map visualization
+         - #map-visualization: Contains US map and right panel side-by-side
+         This enables better organization with year slider at top */
       /* --- GLOBAL LAYOUT FIXES --- */
       #linked-advanced {
         display: flex;
@@ -100,6 +109,9 @@
         position: relative;
       }
 
+      /* ===== CHANGE: Added year slider container styling (NEW FEATURE) =====
+         Original code did not have year slider. This container holds the
+         year slider and play/pause button for timelapse animation */
       /* --- YEAR SLIDER (Top Left) --- */
       #year-slider-container {
         width: 100%;
@@ -145,6 +157,7 @@
       .state-map-legend {
         position: relative;
       }
+      /* ===== CHANGE: Added ranking column styling (NEW FEATURE) ===== */
       #ranking-column {
         display: flex;
         flex-direction: column;
@@ -167,12 +180,20 @@
       .rec-class .label_text {
         z-index: -1;
       }
+      /* ===== CHANGE: Added inflation toggle container styling (NEW FEATURE) =====
+         Original code did not have inflation adjustment. This checkbox allows
+         users to view home values adjusted to 2019 USD equivalent */
       #inflation-toggle-container {
         margin-left: 10px;
         margin-top: 10px;
         font: 16px sans-serif;
         color: purple;
       }
+      /* ===== CHANGE: Added ranking and best county container styling (NEW FEATURES) =====
+         Original code did not have state rankings or best county recommendation.
+         These containers display:
+         - State Rankings: List of states sorted by home value (cheapest to most expensive)
+         - Best County: The county with lowest home value for selected year */
       /* Ranking and Best County Adjustments */
       #ranking-container,
       #best-county-container {
@@ -189,7 +210,11 @@
         margin-bottom: 10px;
       }
 
+      /* ===== CHANGE: Removed bubble chart container =====
+           Original code had bubble chart container (#Bubble-container) that displayed
+           top 10 regions when a county was clicked. This was removed in the update. */
       /* --- GENERIC STYLES (Retained) --- */
+      /* NOTE: Bubble-container-class styles retained but not used - bubble chart removed */
       .Bubble-container-class {
         display: flex;
         flex-direction: column;
@@ -283,12 +308,29 @@
   </head>
 
   <body>
+    <!-- ===== CHANGE: Changed page title =====
+         Original: Had "Info" section with name and class title, plus multiple headings
+         Updated: Simplified to single main heading -->
     <h1>Zillow Home Data Index Visualization</h1>
 
+    <!-- ===== CHANGE: Removed entire "Info" section and "Overview of Data" section =====
+         Original HTML had:
+         - <div id="info"> with name and class title
+         - <div class="project"> with description
+         - <div class="data"> with data description
+         - <h1>Overview of Data</h1> with line graph (#line-graph)
+         All removed in updated version -->
     <div id="linked-advanced" class="link-adv-class">
+      <!-- ===== CHANGE: Added map-and-controls container =====
+           Original: Direct children of #linked-advanced were map-container, rec-sys, Bubble-container
+           Updated: Wrapped in #map-and-controls for better organization -->
       <div id="map-and-controls">
+        <!-- ===== CHANGE: Added year slider container (NEW FEATURE) =====
+             Original code did not have year slider. This enables users to select
+             any year between 1996-2019 and includes auto-timelapse animation -->
         <div id="year-slider-container">
           <div class="label">View Home Data by Year Between 1996-2019</div>
+          <!-- ===== CHANGE: Added play/pause button for timelapse (NEW FEATURE) ===== -->
           <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
             <button
               id="playPauseButton"
@@ -306,6 +348,11 @@
             <div class="us-map"></div>
           </div>
 
+          <!-- ===== CHANGE: Restructured rec-sys layout =====
+               Original: Single column with Bcontainer (slider), state-map, and bubble-chart
+               Updated: Split into two columns:
+               - #slider-column: Contains value range slider, inflation toggle, state map, legend
+               - #ranking-column: Contains state rankings and best county recommendation -->
           <div id="rec-sys" class="rec-class">
             <div id="slider-column">
               <div class="Bcontainer">
@@ -314,6 +361,8 @@
                 </div>
                 <div class="controls"></div>
 
+                <!-- ===== CHANGE: Added inflation toggle checkbox (NEW FEATURE) =====
+                     Original code did not have inflation adjustment -->
                 <div id="inflation-toggle-container">
                   <label>
                     <input type="checkbox" id="inflationToggle" />
@@ -321,12 +370,20 @@
                   </label>
                 </div>
               </div>
+              <!-- ===== CHANGE: Added state-map-container and state-map-legend =====
+                   Original: state-map was direct child of rec-sys
+                   Updated: Wrapped in state-map-container with legend on the right -->
               <div class="state-map-container">
                 <div class="state-map"></div>
                 <div class="state-map-legend"></div>
               </div>
             </div>
 
+            <!-- ===== CHANGE: Added ranking column (NEW FEATURE) =====
+                 Original code did not have state rankings or best county recommendation.
+                 This column displays:
+                 - State Rankings: States sorted by home value for selected year
+                 - Best County: County with lowest home value for selected year -->
             <div id="ranking-column">
               <div id="ranking-container" class="ranking-container">
                 <div class="label">State Rankings</div>
