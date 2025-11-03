@@ -262,7 +262,17 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .attr('class', 'tooltip')
     .style('opacity', 0);
 
+  // Filter state data for the selected state
+  const stateData = topojson.feature(topoUs, topoUs.objects.states).features
+    .filter(d => String(d.id) === normalizedStateId);
+
   const state = mapDataState.filter(d => String(d.id) === normalizedStateId);
+
+  // Safety check: ensure state data exists
+  if (!stateData.length || !state.length) {
+    console.error("State data not found for ID:", normalizedStateId);
+    return;
+  }
 
   let selectAb = "";
   for (let j = 0; j < states.length; j++) {
@@ -270,14 +280,16 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     if (key[0] === state[0].properties.name) selectAb = key[1];
   }
 
-  const counties = topojson.feature(topoUs, topoUs.objects.counties).features
+  // Get all counties data
+  const countiesData = topojson.feature(topoUs, topoUs.objects.counties).features;
+  
+  // Filter counties for the selected state using FIPS prefix
+  const counties = countiesData
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
-  const projection = d3.geoAlbers()
-    .precision(0)
-    .scale(height * 2)
-    .translate([width / 2, height / 2]);
-  projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: "FeatureCollection", features: counties });
+  // Use geoIdentity with fitSize for choropleth map (fits to state boundary)
+  const projection = d3.geoIdentity()
+    .fitSize([width, height], stateData[0]);
 
   const path = d3.geoPath().projection(projection);
 
