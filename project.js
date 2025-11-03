@@ -231,14 +231,20 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const width = 300;
   const margin = { top: 0, bottom: 50, left: 100, right: 20 };
 
+  // Normalize stateId to string for consistent comparison
+  const normalizedStateId = String(stateId);
 
+  // Clear all state highlights first
   d3.selectAll("#linked-advanced .map-container .us-map .states").classed("highlightState", false);
-  const statePath = d3.selectAll("#linked-advanced .map-container .us-map .states").filter(d => d.id == stateId);
-  statePath.classed("highlightState", !statePath.classed("highlightState"));
+  // Highlight the clicked state
+  const statePath = d3.selectAll("#linked-advanced .map-container .us-map .states")
+    .filter(d => String(d.id) === normalizedStateId);
+  statePath.classed("highlightState", true);
 
-
-  d3.selectAll("#linked-advanced .rec-class .state-map svg ").remove();
-  d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg ").remove();
+  // Clear existing county map and bubble chart
+  d3.selectAll("#linked-advanced .rec-class .state-map svg").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map .tooltip").remove();
+  d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
 
 
   const svg = d3.select("#linked-advanced .rec-class .state-map").append("svg")
@@ -253,7 +259,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .style('opacity', 0);
 
 
-  const state = mapDataState.filter(d => d.id == stateId);
+  const state = mapDataState.filter(d => String(d.id) === normalizedStateId);
 
 
   let selectAb = "";
@@ -264,7 +270,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
 
   const counties = topojson.feature(topoUs, topoUs.objects.counties).features
-    .filter(d => d.id.slice(0, 2) === stateId.toString().padStart(2, '0')); // match FIPS prefix
+    .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
 
   const projection = d3.geoAlbers()
@@ -315,7 +321,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .attr("fill", d => colorMapCounty(d.properties.name + " County"))
     .on('mouseover', d => tip_county(d.properties.name + " County"))
     .on('mouseout', () => tooltip.transition().duration(500).style('opacity', 0))
-    .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", d.id.slice(0, 2)))
+    .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", normalizedStateId))
     .transition().duration(1000);
 
   // Store counties selection for year updates
