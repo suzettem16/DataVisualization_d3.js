@@ -264,17 +264,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .attr('class', 'tooltip')
     .style('opacity', 0);
 
-  // Filter state data for the selected state
-  const stateData = topojson.feature(topoUs, topoUs.objects.states).features
-    .filter(d => String(d.id) === normalizedStateId);
-
   const state = mapDataState.filter(d => String(d.id) === normalizedStateId);
-
-  // Safety check: ensure state data exists
-  if (!stateData.length || !state.length) {
-    console.error("State data not found for ID:", normalizedStateId);
-    return;
-  }
 
   let selectAb = "";
   for (let j = 0; j < states.length; j++) {
@@ -282,16 +272,14 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     if (key[0] === state[0].properties.name) selectAb = key[1];
   }
 
-  // Get all counties data
-  const countiesData = topojson.feature(topoUs, topoUs.objects.counties).features;
-  
-  // Filter counties for the selected state using FIPS prefix
-  const counties = countiesData
+  const counties = topojson.feature(topoUs, topoUs.objects.counties).features
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
-  // Use geoIdentity with fitSize for choropleth map (fits to state boundary)
-  const projection = d3.geoIdentity()
-    .fitSize([width, height], stateData[0]);
+  const projection = d3.geoAlbers()
+    .precision(0)
+    .scale(height * 2)
+    .translate([width / 2, height / 2]);
+  projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: "FeatureCollection", features: counties });
 
   const path = d3.geoPath().projection(projection);
 
@@ -305,34 +293,15 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   svg.call(zoom);
 
-  // Calculate max county value for the selected state for proper color scaling
-  // Use a reference year (2019) to calculate the max, then scale colors accordingly
-  const referenceYear = "2019"; // Use 2019 as reference year for consistent scaling
-  const stateCounties = countyAverages.filter(d => d.State == selectAb);
-  
-  // Calculate max from reference year for consistent color scale
-  const countyValues = stateCounties
-    .map(d => {
-      const val = d[referenceYear];
-      return val != null && !isNaN(val) && val > 0 
-        ? (adjustInflation ? adjustValueForInflation(val, +referenceYear) : val) 
-        : null;
-    })
-    .filter(v => v !== null && !isNaN(v) && v > 0);
-  const countyMax = d3.max(countyValues) || 800000;
-
-  // Create color scale for counties using the same scheme as states
-  const countyColorScale = d3.scaleSequential(t => d3.interpolateYlOrRd(0.8 + 0.8 * t)).domain([0, countyMax]);
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    let color = "#d3d3d3"; // default gray for no data
+    const color1 = d3.scaleSequential(d3.interpolateYlOrRd(0.4 + 0.8 * t)).domain([0, fixedMax]);
+    let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
-      if (v != null && v > 0) {
-        v = adjustValueForInflation(v, userYear);
-        color = countyColorScale(v);
-      }
+      if (v != null) v = adjustValueForInflation(v, userYear);
+      color = color1(v || 0);
     }
     return color;
   }
@@ -370,13 +339,6 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   window.updateCountyColors = function() {
     countiesSel.transition().duration(400)
       .attr("fill", d => colorMapCounty(d.properties.name + " County"));
-    // Also update slider highlighting when year changes (re-evaluate range)
-    const slider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls");
-    if (slider && slider.noUiSlider) {
-      const currentValues = slider.noUiSlider.get();
-      // Trigger slider change event to update highlighting with new year data
-      slider.noUiSlider.set(currentValues);
-    }
   };
 
   // Connect value range slider to county map
@@ -442,7 +404,7 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
             
         }});
 
-    //     working on this
+    // Update handler for map, rankings, etc. when slider value changes
     yearSlider.noUiSlider.on('update', function(values, handle){
         userYear = parseFloat(values[handle]);
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
@@ -454,8 +416,8 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
     });
 
-    // Automatic time-lapse animation (MODIFIED TO GO FORWARD)
-    window.startTimeLapse = function(duration = 10000, pauseAtEnd = true) {
+    // Automatic time-lapse animation (runs FORWARD: 1996 -> 2019)
+    window.startTimeLapse = function(duration = 12000, pauseAtEnd = true) {
         let currentIndex = 0; // Start from the earliest year (index 0)
         let isPlaying = true;
         
@@ -471,23 +433,38 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
                 currentIndex = 0; // Loop back to the start
             }
             
+            // Set the slider position
             yearSlider.noUiSlider.set([yearsVar[currentIndex]]);
             
             currentIndex++; // Move forward to the next year
             
-            setTimeout(animate, duration / yearsVar.length);
+            // Schedule the next frame
+            window.stopTimeLapse = setTimeout(animate, duration / yearsVar.length);
         };
         
         // Start animation after a short delay
-        setTimeout(animate, 500);
+        window.stopTimeLapse = setTimeout(animate, 500);
         
-        // Return stop function
+        // Return stop function (though it's usually managed by window.stopTimeLapse)
         return () => { isPlaying = false; };
     };
 
-    // Start time-lapse automatically when visualization loads
-    setTimeout(() => window.startTimeLapse(12000, true), 1000);
+    // Attach Replay button functionality
+    const replayButton = document.getElementById("replayButton");
+    if (replayButton) {
+        replayButton.addEventListener("click", () => {
+            // Stop any current animation and start fresh
+            if (window.stopTimeLapse) clearTimeout(window.stopTimeLapse);
+            // Start the time-lapse
+            window.stopTimeLapse = window.startTimeLapse(12000, true);
+        });
+    }
+
+    // Start time-lapse automatically on initial load
+    // The timeout ID is stored in window.stopTimeLapse, allowing the button to stop it later.
+    window.stopTimeLapse = setTimeout(() => window.startTimeLapse(12000, true), 1000);
 }
+
 
 // function createYearSlider(sliderId, years) {
 //   const slider = document.querySelector(sliderId);
@@ -624,7 +601,6 @@ function sliderChange(sliderId, states, mapDataState, countyAverages, divId, sta
       updateHighlighting(currentValues);
     }
   };
-
 }
 
 
