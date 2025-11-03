@@ -170,11 +170,14 @@ function createLegend(colorScale, divId, vertical, reverse) {
   const margin = 20;
   const rampWidth = 20;
 
+  // Clear any existing legend elements
+  d3.select(divId).selectAll("canvas").remove();
+  d3.select(divId).selectAll("svg").remove();
 
   const container = d3.select(divId);
   const boundingRect = container.node().getBoundingClientRect();
-  const width = boundingRect.width, height = boundingRect.height;
-
+  const width = boundingRect.width || 400;
+  const height = boundingRect.height || 360;
 
   const internalScale = colorScale.copy().domain([0, 1]);
   const canvas = d3.select(divId).append("canvas")
@@ -186,7 +189,6 @@ function createLegend(colorScale, divId, vertical, reverse) {
     .style("margin-top", (vertical ? margin : 0) + "px")
     .node();
 
-
   const context = canvas.getContext("2d");
   canvas.style.imageRendering = "pixelated";
   for (let i = 0; i < n; ++i) {
@@ -194,13 +196,11 @@ function createLegend(colorScale, divId, vertical, reverse) {
     context.fillRect(vertical ? 0 : i, vertical ? i : 0, 1, 1);
   }
 
-
   const side = vertical ? height : width;
   const legendScale = d3.scaleLinear()
     .domain(colorScale.domain())
     .range(reverse ? [side - 2 * margin, 0] : [0, side - 2 * margin]);
-  const legendAxis = vertical ? d3.axisRight(legendScale) : d3.axisBottom(legendScale);
-
+  const legendAxis = vertical ? d3.axisRight(legendScale).ticks(5) : d3.axisBottom(legendScale).ticks(5);
 
   d3.select(divId).append("svg")
     .attr("width", vertical ? width - rampWidth : width)
@@ -212,13 +212,15 @@ function createLegend(colorScale, divId, vertical, reverse) {
 
 
 function createLegendDiv(colorScale, divId, vertical = false, reverse = false, size = [400, 60]) {
+  // Remove existing legend div if present
+  d3.select(divId).selectAll(".legend").remove();
+
   d3.select(divId).append("div")
     .attr("class", "legend")
     .style("width", (vertical ? size[1] : size[0]) + "px")
     .style("height", (vertical ? size[0] : size[1]) + "px")
     .style("display", "flex")
-    .style("flex-direction", vertical ? "row" : "columns");
-
+    .style("flex-direction", vertical ? "row" : "column");
 
   createLegend(colorScale, divId + " .legend", vertical, reverse);
 }
