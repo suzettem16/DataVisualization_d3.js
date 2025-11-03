@@ -303,15 +303,34 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   svg.call(zoom);
 
+  // Calculate max county value for the selected state for proper color scaling
+  // Use a reference year (2019) to calculate the max, then scale colors accordingly
+  const referenceYear = "2019"; // Use 2019 as reference year for consistent scaling
+  const stateCounties = countyAverages.filter(d => d.State == selectAb);
+  
+  // Calculate max from reference year for consistent color scale
+  const countyValues = stateCounties
+    .map(d => {
+      const val = d[referenceYear];
+      return val != null && !isNaN(val) && val > 0 
+        ? (adjustInflation ? adjustValueForInflation(val, +referenceYear) : val) 
+        : null;
+    })
+    .filter(v => v !== null && !isNaN(v) && v > 0);
+  const countyMax = d3.max(countyValues) || 800000;
+
+  // Create color scale for counties using the same scheme as states
+  const countyColorScale = d3.scaleSequential(t => d3.interpolateYlOrRd(0.8 + 0.8 * t)).domain([0, countyMax]);
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential(t => d3.interpolateYlOrRd(0.8 + 0.8 * t)).domain([0, fixedMax]);
-    let color = "#d3d3d3";
+    let color = "#d3d3d3"; // default gray for no data
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
-      if (v != null) v = adjustValueForInflation(v, userYear);
-      color = color1(v || 0);
+      if (v != null && v > 0) {
+        v = adjustValueForInflation(v, userYear);
+        color = countyColorScale(v);
+      }
     }
     return color;
   }
@@ -349,8 +368,24 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   window.updateCountyColors = function() {
     countiesSel.transition().duration(400)
       .attr("fill", d => colorMapCounty(d.properties.name + " County"));
+    // Also update slider highlighting when year changes (re-evaluate range)
+    const slider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls");
+    if (slider && slider.noUiSlider) {
+      const currentValues = slider.noUiSlider.get();
+      // Trigger slider change event to update highlighting with new year data
+      slider.noUiSlider.set(currentValues);
+    }
   };
 
+  // Connect value range slider to county map
+  sliderChange(
+    "#linked-advanced .rec-class .Bcontainer .controls",
+    states,
+    mapDataState,
+    countyAverages,
+    "#linked-advanced .rec-class .state-map .county",
+    normalizedStateId
+  );
 
   g.append("text")
     .attr("class", "label_text")
@@ -479,31 +514,40 @@ function sliderChange(sliderId, states, mapDataState, countyAverages, divId, sta
   const selectCounties = countyAverages.filter(d => d.State == selectAb);
 
 
-  slider.noUiSlider.off('change');
-  slider.noUiSlider.on('change', function (values) {
+  // Function to update county highlighting based on slider range
+  const updateCountyHighlighting = function(values) {
     const min = +values[0] * 1000;
     const max = +values[1] * 1000;
 
-
+    // Filter counties outside the range using current year
     const countiesOutRange = selectCounties.filter(d => {
       const yearVal = +d[String(userYear)];
+      if (isNaN(yearVal) || yearVal <= 0) return false;
       const adjustedVal = adjustInflation ? adjustValueForInflation(yearVal, userYear) : yearVal;
       return adjustedVal < min || adjustedVal > max;
     });
 
-
+    // Clear previous highlights
     d3.selectAll(divId).classed("highlight", false);
+    
+    // Highlight counties outside the range
     if (countiesOutRange.length !== 0) {
       const keys2 = countiesOutRange.map(d => d.County);
       d3.selectAll(divId)
-        .filter(d => keys2.includes(d.properties.NAME + " County"))
+        .filter(d => keys2.includes(d.properties.name + " County"))
         .classed("highlight", true);
-
 
       d3.selectAll(divId).classed("highlightState", false);
       d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
     }
+  };
+
+  // Connect slider change event
+  slider.noUiSlider.off('change');
+  slider.noUiSlider.on('change', function (values) {
+    updateCountyHighlighting(values);
   });
+
 }
 
 
