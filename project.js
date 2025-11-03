@@ -57,7 +57,7 @@ const years = d3.keys(stateYearCsv[0]).filter(k => k !== "State")
 
 const minYear = d3.min(years);
 const maxYear = d3.max(years);
-window.userYear = maxYear; //default user value
+window.userYear = minYear; //default user value - start from first year
 
 
   const mapDataState = topojson.feature(topoUs, topoUs.objects.states).features;
@@ -298,6 +298,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   svg.call(zoom);
 
   // Calculate fixedMax for county color scale based on all counties in the state
+  // Use max year to ensure scale covers all years' data
   const stateCounties = countyAverages.filter(d => d.State == selectAb);
   const fixedLegendYear = Math.max(...Object.keys(stateCounties[0] || {}).filter(k => k !== "State" && k !== "County").map(Number)) || 2019;
   const fixedVals = stateCounties.map(d => {
@@ -307,6 +308,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const fixedMax = d3.max(fixedVals) || 800000;
 
   // Create county color scale (same as US map for consistency)
+  // Store both the scale and the max value so we can update the domain if needed
   const countyColor = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
 
   // Create legend for county map (on the right side)
@@ -317,14 +319,22 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
-      if (v != null) v = adjustValueForInflation(v, userYear);
-      color = countyColor(v || 0);
+      // Check if value exists for this year
+      if (v != null && v !== undefined && !isNaN(v) && v > 0) {
+        // Apply inflation adjustment if needed
+        v = adjustInflation ? adjustValueForInflation(v, userYear) : v;
+        // Ensure value is within scale domain
+        const clampedValue = Math.min(Math.max(v, 0), fixedMax);
+        color = countyColor(clampedValue);
+      }
+      // If no valid value, return gray (#d3d3d3)
     }
     return color;
   }
 
-  // Store county color scale globally for legend updates
+  // Store county color scale and max value globally for legend updates
   window.countyColorScale = countyColor;
+  window.countyColorMax = fixedMax;
 
 
   function tip_county(countyName) {
@@ -355,14 +365,134 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", normalizedStateId))
     .transition().duration(1000);
 
+  // Store counties selection and related data globally for year updates
+  // Store these in the closure scope AND globally to ensure they're always accessible
+  window.countiesSelection = countiesSel;
+  window.currentStateAbbr = selectAb;
+  window.currentStateCounties = counties;
+  window.currentCountyAverages = countyAverages;
+  window.currentCountyColor = countyColor;
+  window.currentCountyMax = fixedMax;
+  
+  // Also store in closure for direct access
+  const storedSelectAb = selectAb;
+  const storedCountyAverages = countyAverages;
+  const storedCountyColor = countyColor;
+  const storedFixedMax = fixedMax;
+
   // Store counties selection for year updates
-  window.updateCountyColors = function() {
-    countiesSel.transition().duration(400)
-      .attr("fill", d => colorMapCounty(d.properties.name + " County"));
+  window.updateCountyColors = function(immediate = false) {
+    try {
+      // Re-select counties to ensure we have the current selection
+      // Try multiple selector strategies to ensure we find the counties
+      let countiesToUpdate = d3.selectAll("#linked-advanced .rec-class .state-map .county");
+      if (countiesToUpdate.empty()) {
+        countiesToUpdate = d3.selectAll(".state-map .county");
+      }
+      if (countiesToUpdate.empty()) {
+        countiesToUpdate = d3.selectAll(".county");
+      }
+      
+      if (countiesToUpdate.empty()) {
+        // Don't log warning during animation to avoid console spam
+        if (!immediate) {
+          console.warn('No counties found to update');
+        }
+        return;
+      }
+      
+      // Get state abbreviation and county averages
+      // Try to use closure variables first, fallback to globals, then direct closure variables
+      let stateAb, countyAveragesData, colorScale, maxVal;
+      
+      // Use closure variables if accessible (since we're in closure scope)
+      try {
+        if (typeof storedSelectAb !== 'undefined') stateAb = storedSelectAb;
+        if (typeof storedCountyAverages !== 'undefined') countyAveragesData = storedCountyAverages;
+        if (typeof storedCountyColor !== 'undefined') colorScale = storedCountyColor;
+        if (typeof storedFixedMax !== 'undefined') maxVal = storedFixedMax;
+      } catch(e) {}
+      
+      // Fallback to globals if closure variables not available
+      if (!stateAb) stateAb = window.currentStateAbbr;
+      if (!countyAveragesData) countyAveragesData = window.currentCountyAverages;
+      if (!colorScale) colorScale = window.currentCountyColor;
+      if (!maxVal) maxVal = window.currentCountyMax;
+      
+      // Final fallback to direct closure variables (if in scope)
+      if (!stateAb && typeof selectAb !== 'undefined') stateAb = selectAb;
+      if (!countyAveragesData && typeof countyAverages !== 'undefined') countyAveragesData = countyAverages;
+      if (!colorScale && typeof countyColor !== 'undefined') colorScale = countyColor;
+      if (!maxVal && typeof fixedMax !== 'undefined') maxVal = fixedMax;
+    
+    // Force re-calculation by updating fill directly, using current userYear and state data
+    countiesToUpdate.each(function(d) {
+      const countyName = d.properties.name + " County";
+      // Try to find county data - check both with and without " County" suffix
+      let countyData = countyAveragesData.filter(c => c.State == stateAb && c.County == countyName);
+      
+      // If not found, try without " County" suffix
+      if (countyData.length === 0) {
+        const nameWithoutCounty = d.properties.name;
+        countyData = countyAveragesData.filter(c => c.State == stateAb && c.County == nameWithoutCounty);
+      }
+      
+      // If still not found, try with just the name (some counties might not have "County" in data)
+      if (countyData.length === 0) {
+        countyData = countyAveragesData.filter(c => c.State == stateAb && 
+          (c.County == countyName || c.County == d.properties.name || c.County == nameWithoutCounty));
+      }
+      
+      let color = "#d3d3d3";
+      if (countyData.length > 0) {
+        // Use first match (should be unique but handle edge cases)
+        const county = countyData[0];
+        let v = county[String(userYear)];
+        
+        // If value is missing, try converting userYear to string with different formats
+        if (v == null || v === undefined || isNaN(v)) {
+          v = county[userYear]; // Try without string conversion
+        }
+        
+        // Check if value exists and is valid for this year
+        if (v != null && v !== undefined && !isNaN(v) && v > 0) {
+          // Apply inflation adjustment if needed
+          v = adjustInflation ? adjustValueForInflation(v, userYear) : v;
+          
+          // Ensure value is within scale domain - don't clamp high values, just ensure it's positive
+          const clampedValue = Math.max(v, 0);
+          // Ensure color scale can handle the value
+          if (clampedValue <= maxVal) {
+            color = colorScale(clampedValue);
+          } else {
+            // Value exceeds max - use max color instead of gray
+            color = colorScale(maxVal);
+          }
+          
+          // Double-check color is valid
+          if (!color || color === "undefined" || color === "null") {
+            console.warn('Invalid color for county:', countyName, 'value:', v, 'maxVal:', maxVal);
+            color = "#d3d3d3";
+          }
+        }
+      }
+      
+      // Update fill immediately if during animation, otherwise use transition
+      if (immediate) {
+        d3.select(this).attr("fill", color); // Immediate update, no transition
+      } else {
+        d3.select(this).transition().duration(400).attr("fill", color);
+      }
+    });
+    
     // Update legend when year changes
     if (window.countyColorScale) {
       d3.selectAll("#linked-advanced .rec-class .state-map-legend .legend").remove();
       createLegendDiv(window.countyColorScale, "#linked-advanced .rec-class .state-map-legend", true, true, [300, 100]);
+    }
+    } catch (error) {
+      // Don't let county color update errors stop animation
+      console.error('Error updating county colors:', error);
     }
   };
 
@@ -416,7 +546,7 @@ function createSlider(sliderId) {
 function createYearSlider(yearID, yearsVar, minY, maxY) {
     var yearSlider = document.querySelector(yearID);
     noUiSlider.create(yearSlider, {
-        start: [maxY],
+        start: [minY], // Start at first year (1996) instead of last year
         connect: [true, false],
         step: 1,
         range: {min: minY, max: maxY},
@@ -429,8 +559,8 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
             
         }});
 
-    // Update handler for map, rankings, etc. when slider value changes
-    yearSlider.noUiSlider.on('update', function(values, handle){
+    // Store update handler so it can be removed/re-added
+    let updateEventHandler = function(values, handle){
         userYear = parseFloat(values[handle]);
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
         if (typeof updateMapColors === "function") updateMapColors();
@@ -439,71 +569,275 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateBestCounty === "function") updateBestCounty();
         // Also update value range highlighting when year changes
         if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
-    });
+        
+        // Note: Don't update timelapse state index here during animation
+        // The animation loop manages its own index to avoid conflicts
+    };
+    
+    // Update handler for map, rankings, etc. when slider value changes
+    yearSlider.noUiSlider.on('update', updateEventHandler);
+    
+    // Track if we're programmatically updating the slider (not user interaction)
+    let isAnimating = false;
+    let startEventHandler = null;
 
-    // Automatic time-lapse animation (runs FORWARD: 1996 -> 2019)
-    window.startTimeLapse = function(duration = 12000, pauseAtEnd = true) {
-        // Stop any existing animation first
-        if (window.stopTimeLapse) {
-            clearTimeout(window.stopTimeLapse);
-            window.stopTimeLapse = null;
+    // Pause timelapse if user manually interacts with slider
+    startEventHandler = function() {
+        // Only stop animation if NOT currently animating (i.e., user interaction)
+        if (!isAnimating && window.timelapseState && window.timelapseState.isPlaying) {
+            window.stopTimeLapse();
         }
-        
-        let currentIndex = 0; // Start from the earliest year (index 0)
-        let isPlaying = true;
-        let timeoutId = null;
-        
-        const animate = () => {
-            if (!isPlaying) {
-                if (timeoutId) clearTimeout(timeoutId);
-                return;
-            }
-            
-            // Check if it reached the end of the years
-            if (currentIndex >= yearsVar.length) {
-                if (pauseAtEnd) {
-                    isPlaying = false; // Stop if pauseAtEnd is true
-                    window.stopTimeLapse = null;
-                    return;
-                }
-                currentIndex = 0; // Loop back to the start
-            }
-            
-            // Set the slider position
-            yearSlider.noUiSlider.set([yearsVar[currentIndex]]);
-            
-            currentIndex++; // Move forward to the next year
-            
-            // Schedule the next frame
-            timeoutId = setTimeout(animate, duration / yearsVar.length);
-            window.stopTimeLapse = timeoutId;
-        };
-        
-        // Start animation after a short delay
-        timeoutId = setTimeout(animate, 500);
-        window.stopTimeLapse = timeoutId;
+    };
+    yearSlider.noUiSlider.on('start', startEventHandler);
+
+    // New time-lapse animation system
+    window.timelapseState = {
+        isPlaying: false,
+        currentYearIndex: 0, // Start from first year (index 0)
+        animationId: null,
+        duration: 15000, // Total animation duration in milliseconds
+        pauseAtEnd: true,
+        yearsArray: yearsVar // Store years array for reference
     };
 
-    // Attach Replay button functionality
-    const replayButton = document.getElementById("replayButton");
-    if (replayButton) {
-        replayButton.addEventListener("click", () => {
-            // Stop any current animation and start fresh
-            if (window.stopTimeLapse) {
-                clearTimeout(window.stopTimeLapse);
-                window.stopTimeLapse = null;
+    // Start time-lapse animation
+    window.startTimeLapse = function(duration = 15000, pauseAtEnd = true) {
+        // Stop any existing animation first
+        window.stopTimeLapse();
+        
+        if (!window.timelapseState) {
+            window.timelapseState = {
+                isPlaying: false,
+                currentYearIndex: 0,
+                animationId: null,
+                duration: 15000,
+                pauseAtEnd: true,
+                yearsArray: yearsVar
+            };
+        }
+        
+        window.timelapseState.isPlaying = true;
+        window.timelapseState.duration = duration;
+        window.timelapseState.pauseAtEnd = pauseAtEnd;
+        
+        // Hardcode years 1996-2019 (24 years total)
+        const yearList = [];
+        for (let y = 1996; y <= 2019; y++) {
+            yearList.push(y);
+        }
+        const totalYears = yearList.length;
+        const frameDuration = duration / totalYears;
+        
+        // Always start from beginning (index 0)
+        let currentIndex = 0;
+        window.timelapseState.currentYearIndex = 0;
+        
+        // Disable ALL event handlers during animation to prevent interference
+        isAnimating = true;
+        if (startEventHandler) {
+            yearSlider.noUiSlider.off('start', startEventHandler);
+        }
+        if (updateEventHandler) {
+            yearSlider.noUiSlider.off('update', updateEventHandler);
+        }
+        
+        const animate = () => {
+            try {
+                // Check if animation should continue - must check at start
+                if (!window.timelapseState || !window.timelapseState.isPlaying) {
+                    console.log('Animation stopped: state check failed', {
+                        hasState: !!window.timelapseState,
+                        isPlaying: window.timelapseState?.isPlaying
+                    });
+                    isAnimating = false;
+                    if (startEventHandler) yearSlider.noUiSlider.on('start', startEventHandler);
+                    if (updateEventHandler) yearSlider.noUiSlider.on('update', updateEventHandler);
+                    return;
+                }
+                
+                // Check if we've reached the end BEFORE updating
+                if (currentIndex >= totalYears) {
+                    console.log('Animation reached end at index:', currentIndex);
+                    isAnimating = false;
+                    if (startEventHandler) yearSlider.noUiSlider.on('start', startEventHandler);
+                    if (updateEventHandler) yearSlider.noUiSlider.on('update', updateEventHandler);
+                    if (pauseAtEnd) {
+                        window.timelapseState.isPlaying = false;
+                        window.timelapseState.currentYearIndex = totalYears - 1;
+                        window.timelapseState.animationId = null;
+                        updatePlayPauseButton(); // Update button when animation ends
+                        return;
+                    }
+                    // Loop back to start
+                    currentIndex = 0;
+                    window.timelapseState.currentYearIndex = 0;
+                    isAnimating = true;
+                    if (startEventHandler) yearSlider.noUiSlider.off('start', startEventHandler);
+                    if (updateEventHandler) yearSlider.noUiSlider.off('update', updateEventHandler);
+                }
+                
+                // Update to current year
+                const targetYear = yearList[currentIndex];
+                console.log('Animating to year:', targetYear, 'index:', currentIndex, '/', totalYears, 'isPlaying:', window.timelapseState.isPlaying);
+                
+                // Update everything manually (no events will fire since handlers are disabled)
+                userYear = targetYear;
+                d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
+                
+                // Update visuals - wrap in try-catch to prevent errors from stopping animation
+                // Use immediate updates during animation for better responsiveness
+                try {
+                    if (typeof updateMapColors === "function") updateMapColors();
+                } catch(e) { console.error('updateMapColors error:', e); }
+                try {
+                    if (typeof updateCountyColors === "function") updateCountyColors(true); // true = immediate update
+                } catch(e) { console.error('updateCountyColors error:', e); }
+                try {
+                    if (typeof updateRankings === "function") updateRankings();
+                } catch(e) { console.error('updateRankings error:', e); }
+                try {
+                    if (typeof updateBestCounty === "function") updateBestCounty();
+                } catch(e) { console.error('updateBestCounty error:', e); }
+                try {
+                    if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
+                } catch(e) { console.error('updateValueRangeHighlighting error:', e); }
+                
+                // Update slider position (no events will fire)
+                try {
+                    yearSlider.noUiSlider.set([targetYear]);
+                } catch(e) {
+                    console.error('Slider set error:', e);
+                }
+                
+                // Update index for next iteration
+                window.timelapseState.currentYearIndex = currentIndex;
+                currentIndex++;
+                
+                // CRITICAL: Check if still playing BEFORE scheduling next frame
+                const stillPlaying = window.timelapseState && window.timelapseState.isPlaying;
+                console.log('After update - currentIndex:', currentIndex, 'totalYears:', totalYears, 'stillPlaying:', stillPlaying);
+                
+                // ALWAYS schedule next frame if we haven't reached the end AND still playing
+                if (currentIndex < totalYears && stillPlaying) {
+                    window.timelapseState.animationId = setTimeout(() => {
+                        console.log('setTimeout callback executing for index', currentIndex);
+                        animate();
+                    }, frameDuration);
+                    console.log('Scheduled next frame for index', currentIndex, 'in', frameDuration, 'ms, timeout ID:', window.timelapseState.animationId);
+                } else if (currentIndex >= totalYears) {
+                    console.log('Reached end, not scheduling more frames');
+                    isAnimating = false;
+                    if (startEventHandler) yearSlider.noUiSlider.on('start', startEventHandler);
+                    if (updateEventHandler) yearSlider.noUiSlider.on('update', updateEventHandler);
+                } else {
+                    console.log('NOT scheduling - animation stopped!', {
+                        isPlaying: window.timelapseState?.isPlaying,
+                        currentIndex,
+                        totalYears
+                    });
+                    isAnimating = false;
+                    if (startEventHandler) yearSlider.noUiSlider.on('start', startEventHandler);
+                    if (updateEventHandler) yearSlider.noUiSlider.on('update', updateEventHandler);
+                }
+            } catch(error) {
+                console.error('Error in animate function:', error);
+                isAnimating = false;
+                if (startEventHandler) yearSlider.noUiSlider.on('start', startEventHandler);
+                if (updateEventHandler) yearSlider.noUiSlider.on('update', updateEventHandler);
+                if (window.timelapseState) {
+                    window.timelapseState.isPlaying = false;
+                }
             }
-            // Reset slider to first year immediately
-            const firstYear = d3.min(yearsVar);
-            yearSlider.noUiSlider.set([firstYear]);
-            // Start the time-lapse from the beginning
-            window.startTimeLapse(12000, true);
+        };
+        
+        // Start animation immediately
+        console.log('Starting animation from index 0, total years:', totalYears, 'frameDuration:', frameDuration);
+        animate();
+        
+        // Update play/pause button to show pause
+        updatePlayPauseButton();
+    };
+
+    // Stop time-lapse animation
+    window.stopTimeLapse = function() {
+        // Clear animation flag
+        isAnimating = false;
+        
+        // Re-enable event handlers
+        if (startEventHandler) {
+            yearSlider.noUiSlider.on('start', startEventHandler);
+        }
+        if (updateEventHandler) {
+            yearSlider.noUiSlider.on('update', updateEventHandler);
+        }
+        
+        if (window.timelapseState) {
+            if (window.timelapseState.animationId) {
+                clearTimeout(window.timelapseState.animationId);
+                window.timelapseState.animationId = null;
+            }
+            window.timelapseState.isPlaying = false;
+        }
+        
+        // Update play/pause button to show play
+        updatePlayPauseButton();
+    };
+
+    // Toggle play/pause
+    window.toggleTimeLapse = function() {
+        if (window.timelapseState && window.timelapseState.isPlaying) {
+            window.stopTimeLapse();
+        } else {
+            if (!window.timelapseState) {
+                window.timelapseState = {
+                    isPlaying: false,
+                    currentYearIndex: 0,
+                    animationId: null,
+                    duration: 15000,
+                    pauseAtEnd: true,
+                    yearsArray: yearsVar
+                };
+            }
+            window.startTimeLapse(window.timelapseState.duration, window.timelapseState.pauseAtEnd);
+        }
+    };
+
+
+    // Update play/pause button text based on animation state
+    function updatePlayPauseButton() {
+        const playPauseButton = document.getElementById("playPauseButton");
+        if (playPauseButton) {
+            if (window.timelapseState && window.timelapseState.isPlaying) {
+                playPauseButton.textContent = "Pause";
+                playPauseButton.title = "Pause animation";
+            } else {
+                playPauseButton.textContent = "Replay";
+                playPauseButton.title = "Replay animation";
+            }
+        }
+    }
+
+    // Play/Pause button functionality
+    const playPauseButton = document.getElementById("playPauseButton");
+    if (playPauseButton) {
+        playPauseButton.addEventListener("click", () => {
+            window.toggleTimeLapse();
+            // Update button text after a short delay to ensure state is updated
+            setTimeout(updatePlayPauseButton, 50);
         });
     }
 
+    // Update button when animation starts or stops
+    // We'll update the button inside stopTimeLapse and startTimeLapse functions
+
     // Start time-lapse automatically on initial load
-    // The timeout ID is stored in window.stopTimeLapse, allowing the button to stop it later.
-    window.stopTimeLapse = setTimeout(() => window.startTimeLapse(12000, true), 1000);
+    // Since slider now starts at minY, we can start timelapse directly
+    setTimeout(() => {
+        window.timelapseState.currentYearIndex = 0;
+        window.startTimeLapse(15000, true);
+        // Initial button state update
+        updatePlayPauseButton();
+    }, 500);
 }
 
 
