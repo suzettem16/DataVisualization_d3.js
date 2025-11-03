@@ -121,22 +121,25 @@
       /* --- RIGHT PANEL LAYOUT (#rec-sys) --- */
       #rec-sys {
         display: flex;
-        flex-direction: row; /* MODIFIED: Horizontal layout for columns */
+        flex-direction: row; /* Horizontal layout for separate columns */
         align-items: flex-start;
+        gap: 140px; /* Clear separation between columns */
         margin-top: -100px; /* Pulled up to align with top slider (tune this value) */
         margin-left: 20px;
       }
 
-      /* NEW: Column styles for side-by-side content */
+      /* Column styles - separate distinct columns */
       #slider-column {
         display: flex;
         flex-direction: column;
-        margin-right: 20px; /* Space between the two columns */
+        align-items: flex-start;
+        width: 300px; /* Fixed width for slider column */
       }
       #ranking-column {
         display: flex;
         flex-direction: column;
-        margin-left: -50px;
+        align-items: flex-start;
+        width: 300px; /* Fixed width for ranking column */
       }
 
       /* --- RIGHT PANEL CHILD STYLES --- */
