@@ -188,7 +188,7 @@ function createLegend(colorScale, divId, vertical, reverse) {
     .style("width", (vertical ? rampWidth : width - 2 * margin) + "px")
     .style("height", (vertical ? height - 2 * margin : rampWidth) + "px")
     .style("margin-left", (vertical ? 20 : margin) + "px")
-    .style("margin-top", (vertical ? margin : 0) + "px")
+    .style("margin-top", (vertical ? 40 : 0) + "px")
     .node();
 
   const context = canvas.getContext("2d");
@@ -204,11 +204,13 @@ function createLegend(colorScale, divId, vertical, reverse) {
     .range(reverse ? [side - 2 * margin, 0] : [0, side - 2 * margin]);
   const legendAxis = vertical ? d3.axisRight(legendScale).ticks(5) : d3.axisBottom(legendScale).ticks(5);
 
+  const newVerticalMargin = 37; 
+
   d3.select(divId).append("svg")
     .attr("width", vertical ? width - rampWidth : width)
     .attr("height", vertical ? height : height - rampWidth)
     .append("g")
-    .attr("transform", "translate(" + (vertical ? 0 : margin) + "," + (vertical ? margin : 0) + ")")
+    .attr("transform", "translate(" + (vertical ? 0 : margin) + "," + (vertical ? newVerticalMargin : 0) + ")") 
     .call(legendAxis);
 }
 
@@ -292,7 +294,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential([0, 800000], d3.interpolateViridis);
+    const color1 = d3.scaleSequential(t => d3.interpolateYlOrRd(0.8 + 0.8 * t)).domain([0, fixedMax]);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
@@ -369,7 +371,6 @@ function createSlider(sliderId) {
     pips: { mode: 'steps', stepped: true, density: 4 }
   });
 }
-
 function createYearSlider(yearID, yearsVar, minY, maxY) {
     var yearSlider = document.querySelector(yearID);
     noUiSlider.create(yearSlider, {
@@ -396,26 +397,26 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateBestCounty === "function") updateBestCounty();
     });
 
-    // Automatic time-lapse animation on load
+    // Automatic time-lapse animation (MODIFIED TO GO FORWARD)
     window.startTimeLapse = function(duration = 10000, pauseAtEnd = true) {
-        let currentIndex = yearsVar.length - 1; // Start from most recent year
+        let currentIndex = 0; // Start from the earliest year (index 0)
         let isPlaying = true;
         
         const animate = () => {
             if (!isPlaying) return;
             
-            if (currentIndex < 0) {
-                currentIndex = yearsVar.length - 1; // Loop back to end
+            // Check if it reached the end of the years
+            if (currentIndex >= yearsVar.length) {
+                if (pauseAtEnd) {
+                    isPlaying = false; // Stop if pauseAtEnd is true
+                    return;
+                }
+                currentIndex = 0; // Loop back to the start
             }
             
             yearSlider.noUiSlider.set([yearsVar[currentIndex]]);
             
-            currentIndex--;
-            
-            if (currentIndex < 0 && pauseAtEnd) {
-                isPlaying = false;
-                return;
-            }
+            currentIndex++; // Move forward to the next year
             
             setTimeout(animate, duration / yearsVar.length);
         };
@@ -430,7 +431,6 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
     // Start time-lapse automatically when visualization loads
     setTimeout(() => window.startTimeLapse(12000, true), 1000);
 }
-
 
 // function createYearSlider(sliderId, years) {
 //   const slider = document.querySelector(sliderId);
@@ -500,10 +500,9 @@ function createUSMap(
   createStateMap, createBubble, zillowDataAvg,
   stateYearLookup, years
 ) {
-  const height = 500;
+  const height = 600;
   const width = 550;
-  const margin = { top: 20, bottom: 50, left: 0, right: 20 };
-
+  const margin = { top: 20, bottom: 50, left: 0, right: 20 }; // <--- Change this line  
 
   d3.selectAll("#linked-advanced .map-container .us-map svg ").remove();
   d3.selectAll("#linked-advanced .map-container .us-map .tooltip").remove();
@@ -528,7 +527,7 @@ function createUSMap(
     .attr("class", "year-label");
 
 
-  const color = d3.scaleSequential(d3.interpolateViridis);
+  const color = d3.scaleSequential(d3.interpolateYlOrRd);
   const fixedLegendYear = d3.max(years) || 2019;
   const fixedVals = Object.keys(stateYearLookup)
   .map(ab => {
@@ -613,7 +612,7 @@ color.domain([0, fixedMax]);
     .on('click', d => createStateMap(data, mapDataState, countyAverages, states, d.id, createBubble, zillowDataAvg))
 
 
-    .attr("transform", "translate(0,40)")
+    .attr("transform", "translate(0,60)")
     .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear, previous current year
 
 
@@ -634,18 +633,17 @@ color.domain([0, fixedMax]);
 //     });
 //   }
     function updateMapColors() {
-        const currentVals = Object.keys(stateYearLookup)
-            .map(ab => {
-                const val = stateYearLookup[ab][userYear]; //changed to userYear
-                if (isNaN(val)) return null;
-                return adjustInflation ? adjustValueForInflation(val, userYear) : val; //changed to userYear
-            })
-            .filter(v => v !== null && !isNaN(v));
+        // const currentVals = Object.keys(stateYearLookup)
+        //     .map(ab => {
+        //         const val = stateYearLookup[ab][userYear]; //changed to userYear
+        //         if (isNaN(val)) return null;
+        //         return adjustInflation ? adjustValueForInflation(val, userYear) : val; //changed to userYear
+        //     })
+        //     .filter(v => v !== null && !isNaN(v));
 
 
-        const newMax = d3.max(currentVals) || 800000;
-        color.domain([0, newMax]);
-        //state map colors adjust to legend color while user changes
+        // const newMax = d3.max(currentVals) || 800000;
+        // //state map colors adjust to legend color while user changes
         d3.selectAll("#linked-advanced .map-container .us-map .legend").remove();
         createLegendDiv(color, "#linked-advanced .map-container .us-map", true, true, [360, 100]);
 
@@ -863,4 +861,3 @@ Promise.all([
   d3.json("https://raw.githubusercontent.com/PSdiv/zillow/master/statesAbbreviation"),
   d3.csv("State_Zhvi_Averages.csv")
 ]).then(createVis);
-
