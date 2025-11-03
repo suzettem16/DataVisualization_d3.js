@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.css"
+    />
+
+    <style type="text/css">
+      div.tooltip {
+        position: absolute;
+        text-align: center;
+        width: 100px;
+        height: 60px;
+        padding: 2px;
+        font: 12px sans-serif;
+        background: #fff;
+        border: 0px;
+        pointer-events: none;
+      }
+
+      .year-label {
+        position: absolute;
+        top: 60px; /* MODIFIED: Moved down */
+        right: 150px;
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        background-color: #ffe0b2;
+        padding: 5px 10px;
+        border: 2px solid coral;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+      }
+
+      .states:hover {
+        fill-opacity: 0.5;
+      }
+
+      .county:hover {
+        fill-opacity: 0.5;
+      }
+
+      .state-borders {
+        stroke: #fff;
+        stroke-width: 0.5px;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        pointer-events: none;
+      }
+
+      .highlight {
+        fill: #d3d3d3 !important;
+      }
+      .highlight2 {
+        color: white !important;
+      }
+      .highlight3 {
+        color: red !important;
+      }
+      .highlightState {
+        stroke: purple !important;
+        stroke-width: 4px !important;
+      }
+      .highlight_text {
+        font-size: x-large !important;
+        color: #008cba !important;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid black;
+      }
+
+      /* --- GLOBAL LAYOUT FIXES --- */
+      #linked-advanced {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Aligns content to the left */
+        padding-top: 20px;
+      }
+      #map-and-controls {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 800px;
+        margin-left: 10px; /* Padding from left edge */
+      }
+      #map-visualization {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        width: 100%;
+      }
+      #linked-advanced .map-container .us-map {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        position: relative;
+      }
+
+      /* --- YEAR SLIDER (Top Left) --- */
+      #year-slider-container {
+        width: 100%;
+        margin-bottom: 20px;
+        text-align: left;
+        padding-left: 50px;
+      }
+      #year-slider-container .label {
+        font: 20px sans-serif;
+        color: purple;
+        text-align: left;
+        margin-left: 50px; /* Aligns with the slider */
+      }
+      #year-slider-container .yearSlider {
+        width: 70%;
+        margin: 10px 0 10px -5px;
+      }
+
+      #year-slider-container .year-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 60%;
+        margin-left: 50px;
+      }
+
+      /* --- RIGHT PANEL LAYOUT (#rec-sys) --- */
+      #rec-sys {
+        display: flex;
+        flex-direction: row; /* Horizontal layout for separate columns */
+        align-items: flex-start;
+        gap: 140px; /* Clear separation between columns */
+        margin-top: -100px; /* Pulled up to align with top slider (tune this value) */
+        margin-left: 20px;
+      }
+
+      /* Column styles - separate distinct columns */
+      #slider-column {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 300px; /* Fixed width for slider column */
+      }
+      #ranking-column {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 300px; /* Fixed width for ranking column */
+      }
+
+      /* --- RIGHT PANEL CHILD STYLES --- */
+      .rec-class .label {
+        text-align: center;
+        font: 20px sans-serif;
+        color: purple;
+        width: 300px;
+      }
+      #rec-sys .controls {
+        width: 300px;
+        margin-top: 20px;
+        margin-bottom: 80px;
+      }
+      .rec-class .label_text {
+        z-index: -1;
+      }
+      #inflation-toggle-container {
+        margin-left: 10px;
+        margin-top: 10px;
+        font: 16px sans-serif;
+        color: purple;
+      }
+      /* Ranking and Best County Adjustments */
+      #ranking-container,
+      #best-county-container {
+        margin-left: 0;
+        margin-top: 20px;
+        width: 300px;
+      }
+      #ranking-container .label,
+      #best-county-container .label {
+        margin-left: 0;
+        text-align: center;
+        font: 20px sans-serif;
+        color: purple;
+        margin-bottom: 10px;
+      }
+
+      /* --- GENERIC STYLES (Retained) --- */
+      .Bubble-container-class {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .Bubble-container-class .label {
+        margin-left: 120px;
+        font: 20px sans-serif;
+        color: purple;
+      }
+      h3 {
+        color: coral;
+      }
+
+      h1 {
+        text-align: center;
+      }
+      .noUi-value {
+        color: black;
+        padding: 2px;
+      }
+      .noUi-connect {
+        background: coral;
+      }
+      .noUi-marker {
+        background: black;
+      }
+      .noUi-marker-sub {
+        background: black;
+      }
+      #inflationToggle {
+        transform: scale(1.2);
+        margin-right: 8px;
+      }
+      .ranking-list {
+        max-height: 400px;
+        overflow-y: auto;
+        font: 12px sans-serif;
+      }
+      .ranking-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 8px;
+        margin: 2px 0;
+        border-bottom: 1px solid #ddd;
+      }
+      .ranking-item:hover {
+        background-color: #f0f0f0;
+      }
+      .ranking-rank {
+        font-weight: bold;
+        color: coral;
+        width: 30px;
+      }
+      .ranking-state {
+        flex: 1;
+        color: #333;
+      }
+      .ranking-value {
+        color: #666;
+        font-family: monospace;
+      }
+      .best-county-info {
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 2px solid coral;
+        border-radius: 5px;
+        font: 14px sans-serif;
+      }
+      .best-county-name {
+        font-weight: bold;
+        font-size: 16px;
+        color: coral;
+        margin-bottom: 5px;
+      }
+      .best-county-details {
+        color: #333;
+        margin: 5px 0;
+      }
+      .best-county-value {
+        color: #008cba;
+        font-weight: bold;
+        font-size: 18px;
+        margin-top: 10px;
+      }
+    </style>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.0.2/nouislider.min.js"></script>
+  </head>
+
+  <body>
+    <h1>Zillow Home Data Index Visualization</h1>
+
+    <div id="linked-advanced" class="link-adv-class">
+      <div id="map-and-controls">
+        <div id="year-slider-container">
+          <div class="year-header">
+          <div class="label">View Home Data by Year Between 1996-2019</div>
+          <button
+            id="replayButton"
+            style="padding: 5px 20px; font-size: 14px; white-space: nowrap"
+          >
+            Replay
+          </button>
+          </div>
+          <div class="yearSlider"></div>
+        </div>
+
+        <div id="map-visualization">
+          <div class="map-container">
+            <div class="us-map"></div>
+          </div>
+
+          <div id="rec-sys" class="rec-class">
+            <div id="slider-column">
+              <div class="Bcontainer">
+                <div class="label">
+                  Home Value Ranges (In multiples of Thousands)
+                </div>
+                <div class="controls"></div>
+
+                <div id="inflation-toggle-container">
+                  <label>
+                    <input type="checkbox" id="inflationToggle" />
+                    Adjust for Inflation (2019 USD)
+                  </label>
+                </div>
+              </div>
+              <div class="state-map"></div>
+            </div>
+
+            <div id="ranking-column">
+              <div id="ranking-container" class="ranking-container">
+                <div class="label">State Rankings</div>
+                <div id="ranking-list" class="ranking-list"></div>
+              </div>
+
+              <div id="best-county-container" class="best-county-container">
+                <div class="label">Best County to Purchase</div>
+                <div id="best-county-info" class="best-county-info"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="text/javascript" src="project.js"></script>
+  </body>
+</html>
