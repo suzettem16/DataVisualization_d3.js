@@ -275,11 +275,13 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const counties = topojson.feature(topoUs, topoUs.objects.counties).features
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
-  const projection = d3.geoAlbers()
-    .precision(0)
-    .scale(height * 2)
-    .translate([width / 2, height / 2]);
-  projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: "FeatureCollection", features: counties });
+  // Get stateData for the selected state
+  const stateData = topojson.feature(topoUs, topoUs.objects.states).features
+    .filter(d => String(d.id) === normalizedStateId);
+
+  // Use geoIdentity with fitSize for county map projection
+  const projection = d3.geoIdentity()
+    .fitSize([width, height], stateData[0]);
 
   const path = d3.geoPath().projection(projection);
 
@@ -293,10 +295,18 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   svg.call(zoom);
 
+  // Calculate fixedMax for county color scale based on all counties in the state
+  const stateCounties = countyAverages.filter(d => d.State == selectAb);
+  const fixedLegendYear = Math.max(...Object.keys(stateCounties[0] || {}).filter(k => k !== "State" && k !== "County").map(Number)) || 2019;
+  const fixedVals = stateCounties.map(d => {
+    const val = d[String(fixedLegendYear)];
+    return adjustInflation ? adjustValueForInflation(val, fixedLegendYear) : val;
+  }).filter(v => v != null && !isNaN(v) && v > 0);
+  const fixedMax = d3.max(fixedVals) || 800000;
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential(d3.interpolateYlOrRd(0.4 + 0.8 * t)).domain([0, fixedMax]);
+    const color1 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
