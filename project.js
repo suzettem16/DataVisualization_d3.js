@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => { // Checkbox logic
       adjustInflation = this.checked;
       console.log("Inflation toggle changed:", adjustInflation);
       if (typeof updateMapColors === "function") updateMapColors();
+      if (typeof updateCountyColors === "function") updateCountyColors();
     });
   }
 });
@@ -278,35 +279,48 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
     const color1 = d3.scaleSequential([0, 800000], d3.interpolateViridis);
     let color = "#d3d3d3";
-    if (selectCounty.length === 1) color = color1(selectCounty[0][String(userYear)]); //changed to userYear
+    if (selectCounty.length === 1) {
+      let v = selectCounty[0][String(userYear)];
+      if (v != null) v = adjustValueForInflation(v, userYear);
+      color = color1(v || 0);
+    }
     return color;
   }
 
 
   function tip_county(countyName) {
-    // const year = "2019";
     const selectCounty = countyAverages.filter(d => d.County == countyName && d.State == selectAb);
-    const content =
-      selectCounty.length === 1
-      //added userYear 
-        ? `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average: $${d3.format(",d")(selectCounty[0][userYear])}` //userYear
-        : `State: ${state[0].properties.name}<br>${countyName}<br>No data`;
+    let content;
+    if (selectCounty.length === 1) {
+      let v = selectCounty[0][String(userYear)];
+      if (v != null) v = adjustValueForInflation(v, userYear);
+      const displayYear = adjustInflation ? `${userYear} (2019 USD)` : userYear;
+      content = `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average in ${displayYear}: $${d3.format(",.0f")(v)}`;
+    } else {
+      content = `State: ${state[0].properties.name}<br>${countyName}<br>No data`;
+    }
     tooltip.transition().duration(50).style("display", "inline").style('opacity', 0.9);
     tooltip.html(content).style('left', d3.event.pageX + 'px').style('top', d3.event.pageY - 28 + 'px');
   }
 
 
-  svg.selectAll(".county")
+  const countiesSel = svg.selectAll(".county")
     .data(counties)
     .enter().append("path")
     .attr("d", path)
     .attr("class", "county")
     .attr("stroke", "white")
-    .attr("fill", d => colorMapCounty(d.properties.name + " County"), userYear) //added userYear
-    .on('mouseover', d => tip_county(d.properties.name + " County"),userYear) //added userYear
+    .attr("fill", d => colorMapCounty(d.properties.name + " County"))
+    .on('mouseover', d => tip_county(d.properties.name + " County"))
     .on('mouseout', () => tooltip.transition().duration(500).style('opacity', 0))
     .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", d.id.slice(0, 2)))
     .transition().duration(1000);
+
+  // Store counties selection for year updates
+  window.updateCountyColors = function() {
+    countiesSel.transition().duration(400)
+      .attr("fill", d => colorMapCounty(d.properties.name + " County"));
+  };
 
 
   svg.append("text")
@@ -362,6 +376,7 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         userYear = parseFloat(values[handle]);
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
         if (typeof updateMapColors === "function") updateMapColors();
+        if (typeof updateCountyColors === "function") updateCountyColors();
     });
 
 
@@ -409,7 +424,11 @@ function sliderChange(sliderId, states, mapDataState, countyAverages, divId, sta
     const max = +values[1] * 1000;
 
 
-    const countiesOutRange = selectCounties.filter(d => +d["2019"] < min || +d["2019"] > max);
+    const countiesOutRange = selectCounties.filter(d => {
+      const yearVal = +d[String(userYear)];
+      const adjustedVal = adjustInflation ? adjustValueForInflation(yearVal, userYear) : yearVal;
+      return adjustedVal < min || adjustedVal > max;
+    });
 
 
     d3.selectAll(divId).classed("highlight", false);
