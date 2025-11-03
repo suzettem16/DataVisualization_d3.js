@@ -75,8 +75,7 @@ window.userYear = maxYear; //default user value
 
   createSlider("#linked-advanced .rec-class .Bcontainer .controls");   
   //adding year slider call     
-  createYearSlider("#linked-advanced .rec-class .Slidercontainer .yearSlider", years, minYear, maxYear);
-
+createYearSlider("#year-slider-container .yearSlider", years, minYear, maxYear);
 
   createUSMap(
     topoUs, mapDataState, countyAverages, states,
@@ -188,7 +187,7 @@ function createLegend(colorScale, divId, vertical, reverse) {
     .style("width", (vertical ? rampWidth : width - 2 * margin) + "px")
     .style("height", (vertical ? height - 2 * margin : rampWidth) + "px")
     .style("margin-left", (vertical ? 20 : margin) + "px")
-    .style("margin-top", (vertical ? 40 : 0) + "px")
+    .style("margin-top", (vertical ? 90 : 0) + "px")
     .node();
 
   const context = canvas.getContext("2d");
@@ -204,11 +203,11 @@ function createLegend(colorScale, divId, vertical, reverse) {
     .range(reverse ? [side - 2 * margin, 0] : [0, side - 2 * margin]);
   const legendAxis = vertical ? d3.axisRight(legendScale).ticks(5) : d3.axisBottom(legendScale).ticks(5);
 
-  const newVerticalMargin = 37; 
+  const newVerticalMargin = 90; 
 
   d3.select(divId).append("svg")
     .attr("width", vertical ? width - rampWidth : width)
-    .attr("height", vertical ? height : height - rampWidth)
+    .attr("height", vertical ? height + 60 : height - rampWidth)
     .append("g")
     .attr("transform", "translate(" + (vertical ? 0 : margin) + "," + (vertical ? newVerticalMargin : 0) + ")") 
     .call(legendAxis);
@@ -294,7 +293,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential(t => d3.interpolateYlOrRd(0.8 + 0.8 * t)).domain([0, fixedMax]);
+    const color1 = d3.scaleSequential(d3.interpolateYlOrRd(0.4 + 0.8 * t)).domain([0, fixedMax]);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
