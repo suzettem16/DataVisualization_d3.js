@@ -250,6 +250,8 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   d3.selectAll("#linked-advanced .rec-class .state-map svg").remove();
   d3.selectAll("#linked-advanced .rec-class .state-map .tooltip").remove();
   d3.selectAll("#linked-advanced .rec-class .state-map .state-name-title").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map-legend .legend").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map-legend").selectAll("*").remove();
   d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
 
 
@@ -304,17 +306,25 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   }).filter(v => v != null && !isNaN(v) && v > 0);
   const fixedMax = d3.max(fixedVals) || 800000;
 
+  // Create county color scale (same as US map for consistency)
+  const countyColor = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
+
+  // Create legend for county map (on the right side)
+  createLegendDiv(countyColor, "#linked-advanced .rec-class .state-map-legend", true, true, [300, 100]);
+
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
       if (v != null) v = adjustValueForInflation(v, userYear);
-      color = color1(v || 0);
+      color = countyColor(v || 0);
     }
     return color;
   }
+
+  // Store county color scale globally for legend updates
+  window.countyColorScale = countyColor;
 
 
   function tip_county(countyName) {
@@ -349,6 +359,11 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   window.updateCountyColors = function() {
     countiesSel.transition().duration(400)
       .attr("fill", d => colorMapCounty(d.properties.name + " County"));
+    // Update legend when year changes
+    if (window.countyColorScale) {
+      d3.selectAll("#linked-advanced .rec-class .state-map-legend .legend").remove();
+      createLegendDiv(window.countyColorScale, "#linked-advanced .rec-class .state-map-legend", true, true, [300, 100]);
+    }
   };
 
   // Connect value range slider to county map
@@ -428,16 +443,27 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
 
     // Automatic time-lapse animation (runs FORWARD: 1996 -> 2019)
     window.startTimeLapse = function(duration = 12000, pauseAtEnd = true) {
+        // Stop any existing animation first
+        if (window.stopTimeLapse) {
+            clearTimeout(window.stopTimeLapse);
+            window.stopTimeLapse = null;
+        }
+        
         let currentIndex = 0; // Start from the earliest year (index 0)
         let isPlaying = true;
+        let timeoutId = null;
         
         const animate = () => {
-            if (!isPlaying) return;
+            if (!isPlaying) {
+                if (timeoutId) clearTimeout(timeoutId);
+                return;
+            }
             
             // Check if it reached the end of the years
             if (currentIndex >= yearsVar.length) {
                 if (pauseAtEnd) {
                     isPlaying = false; // Stop if pauseAtEnd is true
+                    window.stopTimeLapse = null;
                     return;
                 }
                 currentIndex = 0; // Loop back to the start
@@ -449,14 +475,13 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
             currentIndex++; // Move forward to the next year
             
             // Schedule the next frame
-            window.stopTimeLapse = setTimeout(animate, duration / yearsVar.length);
+            timeoutId = setTimeout(animate, duration / yearsVar.length);
+            window.stopTimeLapse = timeoutId;
         };
         
         // Start animation after a short delay
-        window.stopTimeLapse = setTimeout(animate, 500);
-        
-        // Return stop function (though it's usually managed by window.stopTimeLapse)
-        return () => { isPlaying = false; };
+        timeoutId = setTimeout(animate, 500);
+        window.stopTimeLapse = timeoutId;
     };
 
     // Attach Replay button functionality
@@ -464,9 +489,15 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
     if (replayButton) {
         replayButton.addEventListener("click", () => {
             // Stop any current animation and start fresh
-            if (window.stopTimeLapse) clearTimeout(window.stopTimeLapse);
-            // Start the time-lapse
-            window.stopTimeLapse = window.startTimeLapse(12000, true);
+            if (window.stopTimeLapse) {
+                clearTimeout(window.stopTimeLapse);
+                window.stopTimeLapse = null;
+            }
+            // Reset slider to first year immediately
+            const firstYear = d3.min(yearsVar);
+            yearSlider.noUiSlider.set([firstYear]);
+            // Start the time-lapse from the beginning
+            window.startTimeLapse(12000, true);
         });
     }
 

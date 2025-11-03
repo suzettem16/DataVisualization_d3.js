@@ -133,7 +133,17 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        width: 450px; /* Increased width to accommodate map and legend side by side */
+        width: 450px; /* Fixed width for slider column (adjusted for legend on right) */
+      }
+      /* State map container with legend on the right */
+      .state-map-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .state-map-legend {
+        position: relative;
       }
       #ranking-column {
         display: flex;
@@ -177,26 +187,6 @@
         font: 20px sans-serif;
         color: purple;
         margin-bottom: 10px;
-      }
-      /* State Map with Legend Layout */
-      .state-map {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-items: flex-start;
-        gap: 20px;
-        position: relative;
-      }
-      .state-map svg {
-        flex-shrink: 0;
-      }
-      .state-map .legend {
-        flex-shrink: 0;
-      }
-      .state-name-title {
-        flex-basis: 100%;
-        width: 100%;
-        margin-top: 10px;
       }
 
       /* --- GENERIC STYLES (Retained) --- */
@@ -328,7 +318,10 @@
                   </label>
                 </div>
               </div>
-              <div class="state-map"></div>
+              <div class="state-map-container">
+                <div class="state-map"></div>
+                <div class="state-map-legend"></div>
+              </div>
             </div>
 
             <div id="ranking-column">
