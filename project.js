@@ -251,18 +251,16 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   const svg = d3.select("#linked-advanced .rec-class .state-map").append("svg")
     .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    .attr("height", height + margin.top + margin.bottom);
 
+  const g = svg.append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
   const tooltip = d3.select("#linked-advanced .rec-class .state-map").append("div")
     .attr('class', 'tooltip')
     .style('opacity', 0);
 
-
   const state = mapDataState.filter(d => String(d.id) === normalizedStateId);
-
 
   let selectAb = "";
   for (let j = 0; j < states.length; j++) {
@@ -270,10 +268,8 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     if (key[0] === state[0].properties.name) selectAb = key[1];
   }
 
-
   const counties = topojson.feature(topoUs, topoUs.objects.counties).features
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
-
 
   const projection = d3.geoAlbers()
     .precision(0)
@@ -281,8 +277,17 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .translate([width / 2, height / 2]);
   projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: "FeatureCollection", features: counties });
 
-
   const path = d3.geoPath().projection(projection);
+
+  // Add zoom behavior
+  const zoom = d3.zoom()
+    .scaleExtent([1, 8])
+    .on("zoom", function(event) {
+      g.attr("transform", 
+        `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+    });
+
+  svg.call(zoom);
 
 
   function colorMapCounty(countyName) {
@@ -314,7 +319,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   }
 
 
-  const countiesSel = svg.selectAll(".county")
+  const countiesSel = g.selectAll(".county")
     .data(counties)
     .enter().append("path")
     .attr("d", path)
@@ -333,7 +338,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   };
 
 
-  svg.append("text")
+  g.append("text")
     .attr("class", "label_text")
     .attr("x", width - 80)
     .attr("y", 15)
