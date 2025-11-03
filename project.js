@@ -19,6 +19,7 @@ document.addEventListener("DOMContentLoaded", () => { // Checkbox logic
       console.log("Inflation toggle changed:", adjustInflation);
       if (typeof updateMapColors === "function") updateMapColors();
       if (typeof updateCountyColors === "function") updateCountyColors();
+      if (typeof updateRankings === "function") updateRankings();
     });
   }
 });
@@ -385,6 +386,7 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
         if (typeof updateMapColors === "function") updateMapColors();
         if (typeof updateCountyColors === "function") updateCountyColors();
+        if (typeof updateRankings === "function") updateRankings();
     });
 
     // Automatic time-lapse animation on load
@@ -642,10 +644,64 @@ color.domain([0, fixedMax]);
 
         statesSel.transition().duration(400)
             .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear
+        if (typeof updateRankings === "function") updateRankings();
     }  
 
 
 window.updateMapColors = updateMapColors;
+
+  // Ranking system function
+  window.updateRankings = function() {
+    const rankingList = d3.select("#ranking-list");
+    rankingList.selectAll("*").remove();
+
+    // Build abbreviation to name mapping once
+    const abbrToName = {};
+    states.forEach(stateObj => {
+      const [name, ab] = Object.entries(stateObj)[0];
+      abbrToName[ab] = name;
+    });
+
+    // Get all states with their values for current year
+    const stateData = Object.keys(stateYearLookup).map(abbr => {
+      const stateName = abbrToName[abbr] || abbr;
+      let value = stateYearLookup[abbr][userYear];
+      if (value != null) value = adjustValueForInflation(value, userYear);
+      
+      return { abbr, stateName, value: value || 0 };
+    }).filter(d => d.value > 0)
+      .sort((a, b) => a.value - b.value); // Sort cheapest to most expensive
+
+    // Create ranking items
+    const items = rankingList.selectAll(".ranking-item")
+      .data(stateData)
+      .enter()
+      .append("div")
+      .attr("class", "ranking-item")
+      .on("click", d => {
+        // Find state by name and click it
+        const stateFeature = mapDataState.find(state => state.properties.name === d.stateName);
+        if (stateFeature) {
+          createStateMap(data, mapDataState, countyAverages, states, stateFeature.id, createBubble, zillowDataAvg);
+        }
+      })
+      .style("cursor", "pointer");
+
+    items.append("span")
+      .attr("class", "ranking-rank")
+      .text((d, i) => (i + 1) + ".");
+
+    items.append("span")
+      .attr("class", "ranking-state")
+      .text(d => d.stateName);
+
+    items.append("span")
+      .attr("class", "ranking-value")
+      .text(d => "$" + d3.format(",.0f")(d.value));
+  };
+
+  // Initialize rankings
+  updateRankings();
 
 
 

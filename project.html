@@ -135,6 +135,55 @@
         transform: scale(1.2);
         margin-right: 8px;
       }
+
+      /* Ranking System Styling */
+      #ranking-container {
+        margin-left: 85px;
+        margin-top: 20px;
+        width: 300px;
+      }
+
+      #ranking-container .label {
+        margin-left: 0;
+        text-align: center;
+        font: 20px sans-serif;
+        color: purple;
+        margin-bottom: 10px;
+      }
+
+      .ranking-list {
+        max-height: 400px;
+        overflow-y: auto;
+        font: 12px sans-serif;
+      }
+
+      .ranking-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 8px;
+        margin: 2px 0;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .ranking-item:hover {
+        background-color: #f0f0f0;
+      }
+
+      .ranking-rank {
+        font-weight: bold;
+        color: coral;
+        width: 30px;
+      }
+
+      .ranking-state {
+        flex: 1;
+        color: #333;
+      }
+
+      .ranking-value {
+        color: #666;
+        font-family: monospace;
+      }
     </style>
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
@@ -175,6 +224,12 @@
           <div class="controls-year"></div> -->
         </div>
         <div class="state-map"></div>
+        
+        <!-- Ranking System -->
+        <div id="ranking-container" class="ranking-container">
+          <div class="label">State Rankings</div>
+          <div id="ranking-list" class="ranking-list"></div>
+        </div>
       </div>
 
       <!-- <div id="Bubble-container" class="Bubble-container-class">
