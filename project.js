@@ -387,7 +387,39 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateCountyColors === "function") updateCountyColors();
     });
 
+    // Automatic time-lapse animation on load
+    window.startTimeLapse = function(duration = 10000, pauseAtEnd = true) {
+        let currentIndex = yearsVar.length - 1; // Start from most recent year
+        let isPlaying = true;
+        
+        const animate = () => {
+            if (!isPlaying) return;
+            
+            if (currentIndex < 0) {
+                currentIndex = yearsVar.length - 1; // Loop back to end
+            }
+            
+            yearSlider.noUiSlider.set([yearsVar[currentIndex]]);
+            
+            currentIndex--;
+            
+            if (currentIndex < 0 && pauseAtEnd) {
+                isPlaying = false;
+                return;
+            }
+            
+            setTimeout(animate, duration / yearsVar.length);
+        };
+        
+        // Start animation after a short delay
+        setTimeout(animate, 500);
+        
+        // Return stop function
+        return () => { isPlaying = false; };
+    };
 
+    // Start time-lapse automatically when visualization loads
+    setTimeout(() => window.startTimeLapse(12000, true), 1000);
 }
 
 
