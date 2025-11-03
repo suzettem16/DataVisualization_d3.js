@@ -7,7 +7,6 @@
     />
 
     <style type="text/css">
-    
       div.tooltip {
         position: absolute;
         text-align: center;
@@ -18,6 +17,21 @@
         background: #fff;
         border: 0px;
         pointer-events: none;
+      }
+
+      .year-label {
+        position: absolute;
+        top: 5px;
+        right: 150px; /* NEW: Adjust to move it left/center, away from the legend */
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        background-color: #ffe0b2;
+        padding: 5px 10px;
+        border: 2px solid coral;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 10;
       }
 
       .states:hover {
@@ -62,11 +76,14 @@
         display: flex;
         flex-direction: row;
         align-items: center;
+        align-items: flex-start; /* Aligns content to the top */
+        padding-top: 20px;
       }
       #linked-advanced .map-container .us-map {
         display: flex;
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
+        position: relative;
       }
       #linked-advanced .Bubble-container-class {
         display: flex;
@@ -235,20 +252,18 @@
 
   <body>
     <h1>Zillow Home Data Index Visualization</h1>
-    <h3>(Click on state to display counties)</h3>
 
     <div id="linked-advanced" class="link-adv-class">
       <div class="map-container">
         <div class="us-map"></div>
       </div>
-  
 
       <div id="rec-sys" class="rec-class">
         <!--Year Slider-->
         <div class="Slidercontainer">
           <div class="label">View Home Data by Year Between 1996-2019</div>
           <div class="yearSlider"></div>
-          </div>
+        </div>
 
         <div class="Bcontainer">
           <div class="label">Home Value Ranges (In multiples of Thousands)</div>
@@ -266,13 +281,13 @@
           <div class="controls-year"></div> -->
         </div>
         <div class="state-map"></div>
-        
+
         <!-- Ranking System -->
         <div id="ranking-container" class="ranking-container">
           <div class="label">State Rankings</div>
           <div id="ranking-list" class="ranking-list"></div>
         </div>
-        
+
         <!-- Best County Recommendation -->
         <div id="best-county-container" class="best-county-container">
           <div class="label">Best County to Purchase</div>
@@ -284,12 +299,8 @@
         <div class="label">Top 10 Home Value Regions</div>
         <div class="bubble-chart"></div>
       </div> -->
-  
     </div>
 
     <script type="text/javascript" src="project.js"></script>
   </body>
 </html>
-
-
-
