@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", () => { // Checkbox logic
       if (typeof updateMapColors === "function") updateMapColors();
       if (typeof updateCountyColors === "function") updateCountyColors();
       if (typeof updateRankings === "function") updateRankings();
+      if (typeof updateBestCounty === "function") updateBestCounty();
     });
   }
 });
@@ -387,6 +388,7 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateMapColors === "function") updateMapColors();
         if (typeof updateCountyColors === "function") updateCountyColors();
         if (typeof updateRankings === "function") updateRankings();
+        if (typeof updateBestCounty === "function") updateBestCounty();
     });
 
     // Automatic time-lapse animation on load
@@ -645,6 +647,7 @@ color.domain([0, fixedMax]);
         statesSel.transition().duration(400)
             .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear
         if (typeof updateRankings === "function") updateRankings();
+        if (typeof updateBestCounty === "function") updateBestCounty();
     }  
 
 
@@ -702,6 +705,86 @@ window.updateMapColors = updateMapColors;
 
   // Initialize rankings
   updateRankings();
+
+  // Best County Recommendation function
+  window.updateBestCounty = function() {
+    const bestCountyInfo = d3.select("#best-county-info");
+    bestCountyInfo.selectAll("*").remove();
+
+    // Find county with lowest home value for current year
+    let bestCounty = null;
+    let lowestValue = Infinity;
+
+    // Build abbreviation to name mapping
+    const abbrToName = {};
+    states.forEach(stateObj => {
+      const [name, ab] = Object.entries(stateObj)[0];
+      abbrToName[ab] = name;
+    });
+
+    // Search through all counties
+    countyAverages.forEach(county => {
+      let value = county[String(userYear)];
+      if (value != null && value > 0) {
+        value = adjustValueForInflation(value, userYear);
+        if (value < lowestValue) {
+          lowestValue = value;
+          bestCounty = {
+            county: county.County,
+            state: abbrToName[county.State] || county.State,
+            stateAbbr: county.State,
+            value: value
+          };
+        }
+      }
+    });
+
+    if (bestCounty) {
+      const displayYear = adjustInflation ? `${userYear} (2019 USD)` : userYear;
+      
+      bestCountyInfo.append("div")
+        .attr("class", "best-county-name")
+        .text(`${bestCounty.county}`);
+
+      bestCountyInfo.append("div")
+        .attr("class", "best-county-details")
+        .text(`${bestCounty.state}`);
+
+      bestCountyInfo.append("div")
+        .attr("class", "best-county-details")
+        .text(`Year: ${displayYear}`);
+
+      bestCountyInfo.append("div")
+        .attr("class", "best-county-value")
+        .text("$" + d3.format(",.0f")(bestCounty.value));
+
+      bestCountyInfo.on("click", () => {
+        // Find state by abbreviation and navigate to it
+        const stateFeature = mapDataState.find(state => {
+          const stateObj = states.find(s => {
+            const [name, ab] = Object.entries(s)[0];
+            return ab === bestCounty.stateAbbr;
+          });
+          if (stateObj) {
+            const [name] = Object.entries(stateObj)[0];
+            return state.properties.name === name;
+          }
+          return false;
+        });
+        if (stateFeature) {
+          createStateMap(data, mapDataState, countyAverages, states, stateFeature.id, createBubble, zillowDataAvg);
+        }
+      })
+      .style("cursor", "pointer");
+    } else {
+      bestCountyInfo.append("div")
+        .attr("class", "best-county-details")
+        .text("No data available");
+    }
+  };
+
+  // Initialize best county
+  updateBestCounty();
 
 
 

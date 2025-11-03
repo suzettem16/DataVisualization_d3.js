@@ -184,6 +184,48 @@
         color: #666;
         font-family: monospace;
       }
+
+      /* Best County Recommendation Styling */
+      #best-county-container {
+        margin-left: 85px;
+        margin-top: 20px;
+        width: 300px;
+      }
+
+      #best-county-container .label {
+        margin-left: 0;
+        text-align: center;
+        font: 20px sans-serif;
+        color: purple;
+        margin-bottom: 10px;
+      }
+
+      .best-county-info {
+        padding: 10px;
+        background-color: #f9f9f9;
+        border: 2px solid coral;
+        border-radius: 5px;
+        font: 14px sans-serif;
+      }
+
+      .best-county-name {
+        font-weight: bold;
+        font-size: 16px;
+        color: coral;
+        margin-bottom: 5px;
+      }
+
+      .best-county-details {
+        color: #333;
+        margin: 5px 0;
+      }
+
+      .best-county-value {
+        color: #008cba;
+        font-weight: bold;
+        font-size: 18px;
+        margin-top: 10px;
+      }
     </style>
 
     <script src="https://d3js.org/d3.v5.min.js"></script>
@@ -229,6 +271,12 @@
         <div id="ranking-container" class="ranking-container">
           <div class="label">State Rankings</div>
           <div id="ranking-list" class="ranking-list"></div>
+        </div>
+        
+        <!-- Best County Recommendation -->
+        <div id="best-county-container" class="best-county-container">
+          <div class="label">Best County to Purchase</div>
+          <div id="best-county-info" class="best-county-info"></div>
         </div>
       </div>
 
