@@ -84,9 +84,6 @@ window.userYear = maxYear; //default user value
 
 createStateMap(topoUs, mapDataState, countyAverages, states, '17', createBubble, zillowDataAvg);
 
-
-
-
   function createBubble(zillowDataAvg, mapDataState, states, selectedCounty, selectedState) {
     const state = mapDataState.filter(d => d.id == selectedState);
 
@@ -130,7 +127,7 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '17', createBubble,
     const pack = data => d3.pack()
       .size([width - 2, height - 2])
       .padding(4)
-      (d3.hierarchy({ children: data }).sum(d => d["2019"]));
+      (d3.hierarchy({ children: data }).sum(d => d[String(userYear)])); //changed from "2019" to userYear
 
 
     const root = pack(selectRegions.slice(0, 10));
@@ -161,7 +158,7 @@ createStateMap(topoUs, mapDataState, countyAverages, states, '17', createBubble,
 
 
       const format = d3.format(",d");
-      leaf.append("title").text(d => `Average : ${format(d.data[2019])}`);
+      leaf.append("title").text(d => `Average : ${format(d.data[userYear])}`); //changed to userYear
     }
   }
 }
@@ -292,7 +289,7 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     const content =
       selectCounty.length === 1
       //added userYear 
-        ? `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average: $${d3.format(",d")(selectCounty[0][2019])}` 
+        ? `State: ${state[0].properties.name}<br>${selectCounty[0].County}<br>Average: $${d3.format(",d")(selectCounty[0][userYear])}` //userYear
         : `State: ${state[0].properties.name}<br>${countyName}<br>No data`;
     tooltip.transition().duration(50).style("display", "inline").style('opacity', 0.9);
     tooltip.html(content).style('left', d3.event.pageX + 'px').style('top', d3.event.pageY - 28 + 'px');
@@ -357,16 +354,14 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
                   values: yearsVar.filter((d, i) => i % 3 == 0 || i == yearsVar.length-1),
                   density: 4
 
-            // mode: 'steps',
-            // density: 6
+            
         }});
 
     //     working on this
     yearSlider.noUiSlider.on('update', function(values, handle){
         userYear = parseFloat(values[handle]);
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
-        // window.repaintUSMap(userYear) //added
-        // window.repaintStateMap(userYear) //added
+        if (typeof updateMapColors === "function") updateMapColors();
     });
 
 
@@ -554,7 +549,7 @@ color.domain([0, fixedMax]);
     .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear, previous current year
 
 
-    //REVIEWWWW
+    //don't need anymore
 //   const yearSlider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls-year");
 //   if (yearSlider && yearSlider.noUiSlider) {
 //     yearSlider.noUiSlider.off("update");
@@ -582,6 +577,9 @@ color.domain([0, fixedMax]);
 
         const newMax = d3.max(currentVals) || 800000;
         color.domain([0, newMax]);
+        //state map colors adjust to legend color while user changes
+        d3.selectAll("#linked-advanced .map-container .us-map .legend").remove();
+        createLegendDiv(color, "#linked-advanced .map-container .us-map", true, true, [360, 100]);
 
         statesSel.transition().duration(400)
             .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear
