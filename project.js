@@ -302,8 +302,8 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
     .attr("d", path)
     .attr("class", "county")
     .attr("stroke", "white")
-    .attr("fill", d => colorMapCounty(d.properties.name + " County"))
-    .on('mouseover', d => tip_county(d.properties.name + " County"))
+    .attr("fill", d => colorMapCounty(d.properties.name + " County"), userYear) //added userYear
+    .on('mouseover', d => tip_county(d.properties.name + " County"),userYear) //added userYear
     .on('mouseout', () => tooltip.transition().duration(500).style('opacity', 0))
     .on("click", d => createBubble(zillowDataAvg, mapDataState, states, d.properties.name + " County", d.id.slice(0, 2)))
     .transition().duration(1000);
