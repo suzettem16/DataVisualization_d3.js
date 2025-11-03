@@ -21,6 +21,8 @@ document.addEventListener("DOMContentLoaded", () => { // Checkbox logic
       if (typeof updateCountyColors === "function") updateCountyColors();
       if (typeof updateRankings === "function") updateRankings();
       if (typeof updateBestCounty === "function") updateBestCounty();
+      // Also update value range highlighting when inflation toggle changes
+      if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
     });
   }
 });
@@ -84,7 +86,7 @@ createYearSlider("#year-slider-container .yearSlider", years, minYear, maxYear);
   );
 
 
-createStateMap(topoUs, mapDataState, countyAverages, states, '17', createBubble, zillowDataAvg);
+createStateMap(topoUs, mapDataState, countyAverages, states, '06', createBubble, zillowDataAvg);
 
   function createBubble(zillowDataAvg, mapDataState, states, selectedCounty, selectedState) {
     const state = mapDataState.filter(d => d.id == selectedState);
@@ -247,6 +249,9 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   // Clear existing county map and bubble chart
   d3.selectAll("#linked-advanced .rec-class .state-map svg").remove();
   d3.selectAll("#linked-advanced .rec-class .state-map .tooltip").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map .state-name-title").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map-legend .legend").remove();
+  d3.selectAll("#linked-advanced .rec-class .state-map-legend").selectAll("*").remove();
   d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
 
 
@@ -272,11 +277,13 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   const counties = topojson.feature(topoUs, topoUs.objects.counties).features
     .filter(d => d.id.slice(0, 2) === normalizedStateId.padStart(2, '0')); // match FIPS prefix
 
-  const projection = d3.geoAlbers()
-    .precision(0)
-    .scale(height * 2)
-    .translate([width / 2, height / 2]);
-  projection.fitExtent([[20, 20], [width - 20, height - 20]], { type: "FeatureCollection", features: counties });
+  // Get stateData for the selected state
+  const stateData = topojson.feature(topoUs, topoUs.objects.states).features
+    .filter(d => String(d.id) === normalizedStateId);
+
+  // Use geoIdentity with fitSize for county map projection
+  const projection = d3.geoIdentity()
+    .fitSize([width, height], stateData[0]);
 
   const path = d3.geoPath().projection(projection);
 
@@ -290,18 +297,34 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
 
   svg.call(zoom);
 
+  // Calculate fixedMax for county color scale based on all counties in the state
+  const stateCounties = countyAverages.filter(d => d.State == selectAb);
+  const fixedLegendYear = Math.max(...Object.keys(stateCounties[0] || {}).filter(k => k !== "State" && k !== "County").map(Number)) || 2019;
+  const fixedVals = stateCounties.map(d => {
+    const val = d[String(fixedLegendYear)];
+    return adjustInflation ? adjustValueForInflation(val, fixedLegendYear) : val;
+  }).filter(v => v != null && !isNaN(v) && v > 0);
+  const fixedMax = d3.max(fixedVals) || 800000;
+
+  // Create county color scale (same as US map for consistency)
+  const countyColor = d3.scaleSequential(d3.interpolateYlOrRd).domain([0, fixedMax]);
+
+  // Create legend for county map (on the right side)
+  createLegendDiv(countyColor, "#linked-advanced .rec-class .state-map-legend", true, true, [300, 100]);
 
   function colorMapCounty(countyName) {
     const selectCounty = countyAverages.filter(d => d.State == selectAb && d.County == countyName);
-    const color1 = d3.scaleSequential(d3.interpolateYlOrRd(0.4 + 0.8 * t)).domain([0, fixedMax]);
     let color = "#d3d3d3";
     if (selectCounty.length === 1) {
       let v = selectCounty[0][String(userYear)];
       if (v != null) v = adjustValueForInflation(v, userYear);
-      color = color1(v || 0);
+      color = countyColor(v || 0);
     }
     return color;
   }
+
+  // Store county color scale globally for legend updates
+  window.countyColorScale = countyColor;
 
 
   function tip_county(countyName) {
@@ -336,15 +359,35 @@ function createStateMap(topoUs, mapDataState, countyAverages, states, stateId, c
   window.updateCountyColors = function() {
     countiesSel.transition().duration(400)
       .attr("fill", d => colorMapCounty(d.properties.name + " County"));
+    // Update legend when year changes
+    if (window.countyColorScale) {
+      d3.selectAll("#linked-advanced .rec-class .state-map-legend .legend").remove();
+      createLegendDiv(window.countyColorScale, "#linked-advanced .rec-class .state-map-legend", true, true, [300, 100]);
+    }
   };
 
+  // Connect value range slider to county map
+  // This adds county map configuration to the shared slider handler
+  sliderChange(
+    "#linked-advanced .rec-class .Bcontainer .controls",
+    states,
+    mapDataState,
+    countyAverages,
+    "#linked-advanced .rec-class .state-map .county",
+    normalizedStateId,
+    null // stateYearLookup - already set in createUSMap
+  );
 
-  g.append("text")
-    .attr("class", "label_text")
-    .attr("x", width - 80)
-    .attr("y", 15)
-    .text(state[0].properties.name)
-    .raise();
+  // Add state name title below the county map in bold, bigger text
+  d3.select("#linked-advanced .rec-class .state-map")
+    .append("div")
+    .attr("class", "state-name-title")
+    .style("font-size", "24px")
+    .style("font-weight", "bold")
+    .style("text-align", "center")
+    .style("margin-top", "10px")
+    .style("color", "#333")
+    .text(state[0].properties.name);
 }
 
 
@@ -386,7 +429,7 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
             
         }});
 
-    //     working on this
+    // Update handler for map, rankings, etc. when slider value changes
     yearSlider.noUiSlider.on('update', function(values, handle){
         userYear = parseFloat(values[handle]);
         d3.select("#linked-advanced .map-container .us-map .year-label").text("Year: " + userYear);
@@ -394,55 +437,75 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         if (typeof updateCountyColors === "function") updateCountyColors();
         if (typeof updateRankings === "function") updateRankings();
         if (typeof updateBestCounty === "function") updateBestCounty();
+        // Also update value range highlighting when year changes
+        if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
     });
-//implemented
-    const replayButton = document.getElementById("replayButton");
-    if (replayButton) {
-        replayButton.addEventListener("click", () => {
-            // Stop any current animation and start fresh
-            if (window.stopTimeLapse) clearTimeout(window.stopTimeLapse);
-            // Start the time-lapse
-            window.stopTimeLapse = window.startTimeLapse(12000, true);
-        });
-    }
-    window.stopTimeLapse = setTimeout(() => window.startTimeLapse(12000, true), 1000);
 
-
-
-    // Automatic time-lapse animation (MODIFIED TO GO FORWARD)
-    window.startTimeLapse = function(duration = 10000, pauseAtEnd = true) {
+    // Automatic time-lapse animation (runs FORWARD: 1996 -> 2019)
+    window.startTimeLapse = function(duration = 12000, pauseAtEnd = true) {
+        // Stop any existing animation first
+        if (window.stopTimeLapse) {
+            clearTimeout(window.stopTimeLapse);
+            window.stopTimeLapse = null;
+        }
+        
         let currentIndex = 0; // Start from the earliest year (index 0)
         let isPlaying = true;
+        let timeoutId = null;
         
         const animate = () => {
-            if (!isPlaying) return;
+            if (!isPlaying) {
+                if (timeoutId) clearTimeout(timeoutId);
+                return;
+            }
             
             // Check if it reached the end of the years
             if (currentIndex >= yearsVar.length) {
                 if (pauseAtEnd) {
                     isPlaying = false; // Stop if pauseAtEnd is true
+                    window.stopTimeLapse = null;
                     return;
                 }
                 currentIndex = 0; // Loop back to the start
             }
             
+            // Set the slider position
             yearSlider.noUiSlider.set([yearsVar[currentIndex]]);
             
             currentIndex++; // Move forward to the next year
             
-            setTimeout(animate, duration / yearsVar.length);
+            // Schedule the next frame
+            timeoutId = setTimeout(animate, duration / yearsVar.length);
+            window.stopTimeLapse = timeoutId;
         };
         
         // Start animation after a short delay
-        setTimeout(animate, 500);
-        
-        // Return stop function
-        return () => { isPlaying = false; };
+        timeoutId = setTimeout(animate, 500);
+        window.stopTimeLapse = timeoutId;
     };
 
-    // Start time-lapse automatically when visualization loads
-    setTimeout(() => window.startTimeLapse(12000, true), 1000);
+    // Attach Replay button functionality
+    const replayButton = document.getElementById("replayButton");
+    if (replayButton) {
+        replayButton.addEventListener("click", () => {
+            // Stop any current animation and start fresh
+            if (window.stopTimeLapse) {
+                clearTimeout(window.stopTimeLapse);
+                window.stopTimeLapse = null;
+            }
+            // Reset slider to first year immediately
+            const firstYear = d3.min(yearsVar);
+            yearSlider.noUiSlider.set([firstYear]);
+            // Start the time-lapse from the beginning
+            window.startTimeLapse(12000, true);
+        });
+    }
+
+    // Start time-lapse automatically on initial load
+    // The timeout ID is stored in window.stopTimeLapse, allowing the button to stop it later.
+    window.stopTimeLapse = setTimeout(() => window.startTimeLapse(12000, true), 1000);
 }
+
 
 // function createYearSlider(sliderId, years) {
 //   const slider = document.querySelector(sliderId);
@@ -462,48 +525,123 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
 // }
 
 
-function sliderChange(sliderId, states, mapDataState, countyAverages, divId, stateId) {
+// Store references for value range slider to update both maps
+window.valueRangeSliderConfig = {
+  stateYearLookup: null,
+  states: null,
+  countyConfig: null
+};
+
+function sliderChange(sliderId, states, mapDataState, countyAverages, divId, stateId, stateYearLookup) {
   const slider = document.querySelector(sliderId);
   if (!slider || !slider.noUiSlider) return;
 
-
-  const state = mapDataState.filter(d => d.id == stateId);
-
-
-  // full state name -> abbr
-  let selectAb = "";
-  for (let j = 0; j < states.length; j++) {
-    const [key, value] = Object.entries(states[j]);
-    if (key[0] === state[0].properties.name) selectAb = key[1];
+  // Store configuration for state map if provided
+  if (stateYearLookup) {
+    window.valueRangeSliderConfig.stateYearLookup = stateYearLookup;
+    window.valueRangeSliderConfig.states = states; // Store states for lookup
   }
-  const selectCounties = countyAverages.filter(d => d.State == selectAb);
 
+  // Store configuration for county map if provided
+  if (stateId && divId) {
+    const state = mapDataState.filter(d => d.id == stateId);
+    if (state.length > 0) {
+      // full state name -> abbr
+      let selectAb = "";
+      for (let j = 0; j < states.length; j++) {
+        const [key, value] = Object.entries(states[j]);
+        if (key[0] === state[0].properties.name) selectAb = key[1];
+      }
+      window.valueRangeSliderConfig.countyConfig = {
+        states: states,
+        mapDataState: mapDataState,
+        countyAverages: countyAverages,
+        divId: divId,
+        stateId: stateId,
+        selectAb: selectAb
+      };
+    }
+  }
 
-  slider.noUiSlider.off('change');
-  slider.noUiSlider.on('change', function (values) {
+  // Function to update highlighting based on slider range for both maps
+  const updateHighlighting = function(values) {
     const min = +values[0] * 1000;
     const max = +values[1] * 1000;
+    const config = window.valueRangeSliderConfig;
 
+    // Update US map (states) highlighting if stateYearLookup is available
+    if (config.stateYearLookup && window.statesSel) {
+      const statesOutRange = Object.keys(config.stateYearLookup).filter(abbr => {
+        let value = config.stateYearLookup[abbr][userYear];
+        if (value != null) value = adjustValueForInflation(value, userYear);
+        if (value == null || isNaN(value) || value <= 0) return false;
+        return value < min || value > max;
+      });
 
-    const countiesOutRange = selectCounties.filter(d => {
-      const yearVal = +d[String(userYear)];
-      const adjustedVal = adjustInflation ? adjustValueForInflation(yearVal, userYear) : yearVal;
-      return adjustedVal < min || adjustedVal > max;
-    });
-
-
-    d3.selectAll(divId).classed("highlight", false);
-    if (countiesOutRange.length !== 0) {
-      const keys2 = countiesOutRange.map(d => d.County);
-      d3.selectAll(divId)
-        .filter(d => keys2.includes(d.properties.NAME + " County"))
-        .classed("highlight", true);
-
-
-      d3.selectAll(divId).classed("highlightState", false);
-      d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
+      // Clear previous highlights on states
+      window.statesSel.classed("highlight", false);
+      
+      // Highlight states outside the range
+      if (statesOutRange.length > 0) {
+        window.statesSel
+          .filter(d => {
+            const stateName = d.properties.name;
+            const stateObj = config.states.find(s => {
+              const [name] = Object.entries(s)[0];
+              return name === stateName;
+            });
+            if (stateObj) {
+              const [name, ab] = Object.entries(stateObj)[0];
+              return statesOutRange.includes(ab);
+            }
+            return false;
+          })
+          .classed("highlight", true);
+      }
     }
+
+    // Update county map highlighting if county config is available
+    if (config.countyConfig) {
+      const cc = config.countyConfig;
+      const selectCounties = cc.countyAverages.filter(d => d.State == cc.selectAb);
+
+      // Filter counties outside the range using current year
+      const countiesOutRange = selectCounties.filter(d => {
+        const yearVal = +d[String(userYear)];
+        if (isNaN(yearVal) || yearVal <= 0) return false;
+        const adjustedVal = adjustInflation ? adjustValueForInflation(yearVal, userYear) : yearVal;
+        return adjustedVal < min || adjustedVal > max;
+      });
+
+      // Clear previous highlights
+      d3.selectAll(cc.divId).classed("highlight", false);
+      
+      // Highlight counties outside the range
+      if (countiesOutRange.length !== 0) {
+        const keys2 = countiesOutRange.map(d => d.County);
+        d3.selectAll(cc.divId)
+          .filter(d => keys2.includes(d.properties.name + " County"))
+          .classed("highlight", true);
+
+        d3.selectAll(cc.divId).classed("highlightState", false);
+        d3.selectAll("#linked-advanced .Bubble-container-class .bubble-chart svg").remove();
+      }
+    }
+  };
+
+  // Connect slider change event (replace any existing handler)
+  slider.noUiSlider.off('change');
+  slider.noUiSlider.on('change', function (values) {
+    updateHighlighting(values);
   });
+
+  // Store update function for external calls (e.g., when year changes)
+  window.updateValueRangeHighlighting = function() {
+    if (slider && slider.noUiSlider) {
+      const currentValues = slider.noUiSlider.get();
+      updateHighlighting(currentValues);
+    }
+  };
 }
 
 
@@ -627,6 +765,9 @@ color.domain([0, fixedMax]);
     .attr("transform", "translate(0,60)")
     .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear, previous current year
 
+  // Store states selection globally for slider updates
+  window.statesSel = statesSel;
+
 
     //don't need anymore
 //   const yearSlider = document.querySelector("#linked-advanced .rec-class .Bcontainer .controls-year");
@@ -663,10 +804,23 @@ color.domain([0, fixedMax]);
             .attr("fill", d => colorMapState(d.properties.name, userYear)); //changed to userYear
         if (typeof updateRankings === "function") updateRankings();
         if (typeof updateBestCounty === "function") updateBestCounty();
+        // Also update value range highlighting when year changes
+        if (typeof updateValueRangeHighlighting === "function") updateValueRangeHighlighting();
     }  
 
 
 window.updateMapColors = updateMapColors;
+
+  // Connect value range slider to US map (states)
+  sliderChange(
+    "#linked-advanced .rec-class .Bcontainer .controls",
+    states,
+    mapDataState,
+    countyAverages,
+    null, // divId for counties (not applicable for US map)
+    null, // stateId (not applicable for US map)
+    stateYearLookup // Pass stateYearLookup to enable state highlighting
+  );
 
   // Ranking system function
   window.updateRankings = function() {

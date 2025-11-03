@@ -118,20 +118,12 @@
         margin: 10px 0 10px -5px;
       }
 
-      #year-slider-container .year-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 60%;
-        margin-left: 50px;
-      }
-
       /* --- RIGHT PANEL LAYOUT (#rec-sys) --- */
       #rec-sys {
         display: flex;
         flex-direction: row; /* Horizontal layout for separate columns */
         align-items: flex-start;
-        gap: 140px; /* Clear separation between columns */
+        gap: 200px; /* Clear separation between columns */
         margin-top: -100px; /* Pulled up to align with top slider (tune this value) */
         margin-left: 20px;
       }
@@ -141,7 +133,17 @@
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        width: 300px; /* Fixed width for slider column */
+        width: 450px; /* Fixed width for slider column (adjusted for legend on right) */
+      }
+      /* State map container with legend on the right */
+      .state-map-container {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .state-map-legend {
+        position: relative;
       }
       #ranking-column {
         display: flex;
@@ -286,7 +288,6 @@
     <div id="linked-advanced" class="link-adv-class">
       <div id="map-and-controls">
         <div id="year-slider-container">
-          <div class="year-header">
           <div class="label">View Home Data by Year Between 1996-2019</div>
           <button
             id="replayButton"
@@ -294,7 +295,6 @@
           >
             Replay
           </button>
-          </div>
           <div class="yearSlider"></div>
         </div>
 
@@ -318,7 +318,10 @@
                   </label>
                 </div>
               </div>
-              <div class="state-map"></div>
+              <div class="state-map-container">
+                <div class="state-map"></div>
+                <div class="state-map-legend"></div>
+              </div>
             </div>
 
             <div id="ranking-column">
