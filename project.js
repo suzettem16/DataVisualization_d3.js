@@ -833,6 +833,8 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         updatePlayPauseButton();
     };
 
+
+
     // Stop time-lapse animation
     window.stopTimeLapse = function() {
         // Clear animation flag
@@ -877,43 +879,69 @@ function createYearSlider(yearID, yearsVar, minY, maxY) {
         }
     };
 
+} 
 
-    // Update play/pause button text based on animation state
-    function updatePlayPauseButton() {
-        const playPauseButton = document.getElementById("playPauseButton");
-        if (playPauseButton) {
-            if (window.timelapseState && window.timelapseState.isPlaying) {
-                playPauseButton.textContent = "Pause";
-                playPauseButton.title = "Pause animation";
-            } else {
-                playPauseButton.textContent = "Replay";
-                playPauseButton.title = "Replay animation";
-            }
-        }
-    }
+// -------- Button control for the timelaspse animation -------
 
-    // Play/Pause button functionality
+function updatePlayPauseButton() {
     const playPauseButton = document.getElementById("playPauseButton");
-    if (playPauseButton) {
-        playPauseButton.addEventListener("click", () => {
-            window.toggleTimeLapse();
-            // Update button text after a short delay to ensure state is updated
-            setTimeout(updatePlayPauseButton, 50);
-        });
+    if (!playPauseButton) return;
+
+    const state = window.timelapseState;
+    if (!state) {
+        playPauseButton.textContent = "Play";
+        playPauseButton.title = "Start animation";
+        return;
     }
 
-    // Update button when animation starts or stops
-    // We'll update the button inside stopTimeLapse and startTimeLapse functions
+    if (state.isPlaying) {
+        playPauseButton.textContent = "Pause";
+        playPauseButton.title = "Pause animation";
+    } else if (state.currentYearIndex >= state.yearsArray.length - 1) {
+        playPauseButton.textContent = "Replay";
+        playPauseButton.title = "Replay animation";
+    } else {
+        playPauseButton.textContent = "Play";
+        playPauseButton.title = "Play animation";
+    }
+}
 
-    // Start time-lapse automatically on initial load
-    // Since slider now starts at minY, we can start timelapse directly
-    setTimeout(() => {
+//button functionality
+const playPauseButton = document.getElementById("playPauseButton");
+if (playPauseButton) {
+    playPauseButton.addEventListener("click", () => {
+        const state = window.timelapseState;
+
+        if (!state) {
+            window.startTimeLapse(15000, true);
+            updatePlayPauseButton();
+            return;
+        }
+
+        if (state.isPlaying) {
+            window.stopTimeLapse();
+        } else if (state.currentYearIndex >= state.yearsArray.length - 1) {
+            state.currentYearIndex = 0;
+            window.startTimeLapse(15000, true);
+        } else {
+            window.startTimeLapse(15000, true);
+        }
+
+        setTimeout(updatePlayPauseButton, 100);
+    });
+}
+
+window.updatePlayPauseButton = updatePlayPauseButton;
+
+// Start automatically
+setTimeout(() => {
+    if (window.timelapseState) {
         window.timelapseState.currentYearIndex = 0;
         window.startTimeLapse(15000, true);
-        // Initial button state update
         updatePlayPauseButton();
-    }, 500);
-}
+    }
+}, 500);
+
 
 
 // function createYearSlider(sliderId, years) {

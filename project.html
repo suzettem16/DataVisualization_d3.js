@@ -129,6 +129,21 @@
         width: 70%;
         margin: 10px 0 10px -5px;
       }
+      /* --- inserted color for button--- */
+    
+      #playPauseButton {
+        background-color: white;
+        border: 2px solid lightslategray;
+        border-radius: 8px;
+        color: lightslategray;
+        transition: 0.2s;
+      }
+
+      #playPauseButton:hover {
+        background-color: lightslategray;
+        color: white;
+      }
+
 
       /* --- RIGHT PANEL LAYOUT (#rec-sys) --- */
       #rec-sys {
@@ -329,9 +344,8 @@
              Original code did not have year slider. This enables users to select
              any year between 1996-2019 and includes auto-timelapse animation -->
         <div id="year-slider-container">
-          <div class="label">View Home Data by Year Between 1996-2019</div>
-          <!-- ===== CHANGE: Added play/pause button for timelapse (NEW FEATURE) ===== -->
-          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+          <div class="label" style="display: flex; align-items: center; gap: 10px;">
+            View Home Data by Year Between 1996-2019
             <button
               id="playPauseButton"
               style="padding: 5px 15px; font-size: 14px; white-space: nowrap; cursor: pointer;"
@@ -342,6 +356,7 @@
           </div>
           <div class="yearSlider"></div>
         </div>
+
 
         <div id="map-visualization">
           <div class="map-container">
