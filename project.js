@@ -901,7 +901,7 @@ function updatePlayPauseButton() {
         playPauseButton.textContent = "Replay";
         playPauseButton.title = "Replay animation";
     } else {
-        playPauseButton.textContent = "Play";
+        playPauseButton.textContent = "Replay";
         playPauseButton.title = "Play animation";
     }
 }
